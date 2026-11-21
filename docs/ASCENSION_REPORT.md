@@ -37,3 +37,11 @@ Two real Web Audio browser cases pass (14.0 s): no context before opt-in, runnin
 Mouse/hand placement now intersects the actual perspective camera ray with the portal plane; exponential position/scale stabilization reduces jumps. Camera and export share cover/contain rectangle math, mirroring and artistic tint. Export letterboxes where needed instead of stretching the viewport. Neutral/Moonlight/Warm presets alter camera treatment and destination lighting.
 
 Types/lint and 21 unit tests pass, including portrait/desktop/parallax projection round-trips and aspect-ratio checks. Browser regression includes nine cases with audio and actual recording export. This is a screen-relative plane anchor, not world SLAM or reliable room depth. MediaPipe ImageSegmenter was considered but not adopted: a person matte alone would not establish portal depth order, and no additional segmentation inference budget has been validated. The baseline works without segmentation; physical occlusion is not claimed.
+
+## Phase 7 — adaptive rendering and instrumentation
+
+Four explicit GPU budgets, optional adaptation capped at the selected preset, five sustained slow windows before downgrade, fifteen fast windows before recovery, twelve-second cooldown and startup/spike suppression. Adaptation freezes during recording. Quality rebuild retains the portal lifecycle; disposed renderers release their contexts. Corrected high-refresh scheduling is unit-tested.
+
+Dashboard reports measured render intervals/trend, actual internal dimensions, particles, all-pass draw calls, triangles, textures/geometries, render-target dimensions, WebGL2, inference and recording state. No GPU-time, VRAM or CPU-utilization estimates are presented as measurements.
+
+24 unit tests pass. Browser preset/instrumentation test passes (18.2 s). In this short 1440×900 Chromium run (canvas 1440×764), measured moving-window frame means were 27.82 ms initial open, 16.61 ms enlarged portal, 18.44 ms Cinematic; 75 all-pass calls each. Startup is included in the first sample. Full raw intervals/methodology are in render-metrics.json. These are not a 1080p target-laptop benchmark or sustained 60 FPS qualification.

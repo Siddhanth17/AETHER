@@ -12,6 +12,37 @@
   color: var(--ink);
   background: var(--bg);
 }
+.performance-panel {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  font-size: 12px;
+  color: #c9bfd7;
+}
+.performance-panel summary {
+  cursor: pointer;
+  min-height: 32px;
+}
+.performance-panel svg {
+  width: 100%;
+  height: 48px;
+  background: #08080d;
+}
+.performance-panel dl {
+  font-size: 11px;
+}
+.inspector dd {
+  overflow-wrap: anywhere;
+}
+.inspector select {
+  min-height: 44px;
+  width: 100%;
+  padding: 8px;
+  background: #231e30;
+  color: #e5dced;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
 .calibration {
   position: absolute;
   z-index: 25;

@@ -4,11 +4,12 @@ import * as T from "three";
 import type { PortalState, Quality } from "@/core/portal";
 import { linkPortalCamera, targetSize } from "@/renderer/portalCamera";
 import { PortalLifecycle } from "@/renderer/lifecycle";
+import { budgets,nextFrameDeadline, type RenderMetrics } from "@/renderer/performance";
 
 interface Props {
   state: PortalState;
   quality: Quality;
-  onMetrics: (fps: number, calls: number) => void;
+  onMetrics: (fps: number, calls: number, metrics?: RenderMetrics) => void;
   onError: (message: string) => void;
 }
 export default function PortalCanvas({
@@ -19,11 +20,13 @@ export default function PortalCanvas({
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const current = useRef(state);
+  const lifecycleRef = useRef(new PortalLifecycle());
   useEffect(() => {
     current.current = state;
   }, [state]);
   useEffect(() => {
     const element = host.current!;
+    const budget = budgets[quality];
     let renderer: T.WebGLRenderer;
     try {
       renderer = new T.WebGLRenderer({
@@ -35,13 +38,9 @@ export default function PortalCanvas({
       onError("WebGL is unavailable. Enable hardware acceleration and reload.");
       return;
     }
-    renderer.setPixelRatio(
-      Math.min(
-        devicePixelRatio,
-        quality === "High" ? 2 : quality === "Low" ? 1 : 1.5,
-      ),
-    );
+    renderer.setPixelRatio(Math.min(devicePixelRatio, budget.dpr));
     renderer.setClearColor(0x000000, 0);
+    renderer.info.autoReset = false;
     element.appendChild(renderer.domElement);
     renderer.domElement.setAttribute(
       "aria-label",
@@ -207,7 +206,7 @@ export default function PortalCanvas({
       glyph.rotation.z = a;
       glyphs.add(glyph);
     }
-    const count = quality === "Low" ? 180 : quality === "High" ? 1200 : 550;
+    const count = budget.particles;
     const positions = new Float32Array(count * 3);
     const random = (i: number) => {
       const v = Math.sin(i * 127.1) * 43758.5453;
@@ -243,18 +242,14 @@ export default function PortalCanvas({
       new T.MeshBasicMaterial({ color: "#fce7cb" }),
     );
     scene.add(spark);
-    const lifecycle = new PortalLifecycle();
+    const lifecycle = lifecycleRef.current;
     const resize = () => {
       const w = element.clientWidth,
         h = element.clientHeight;
       renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      const size = targetSize(
-        w,
-        h,
-        quality === "Low" ? 512 : quality === "High" ? 1536 : 1024,
-      );
+      const size = targetSize(w, h, budget.target);
       rt.setSize(size.width, size.height);
       renderer.getDrawingBufferSize(surfaceMaterial.uniforms.resolution.value);
     };
@@ -267,6 +262,8 @@ export default function PortalCanvas({
       scale = 1;
     let lost = false;
     let previousFrame = 0;
+    let lastRendered = performance.now();
+    const durations: number[] = [];
     let userScale = 1;
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -279,9 +276,22 @@ export default function PortalCanvas({
     renderer.domElement.addEventListener("webglcontextlost", contextLost);
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
-      if (lost || document.hidden || now - previousFrame < 1000 / 60) return;
-      const dt = Math.min(0.05, (now - previousFrame) / 1000);
-      previousFrame = now;
+      if (document.hidden) {
+        lastRendered = now;
+        last = now;
+        frames = 0;
+        durations.length = 0;
+        return;
+      }
+      if (lost || now < previousFrame) return;
+      const elapsed = now - lastRendered;
+      lastRendered = now;
+      if (elapsed > 0 && elapsed < 250) {
+        durations.push(elapsed);
+        if (durations.length > 120) durations.shift();
+      }
+      const dt = Math.min(0.05, elapsed / 1000);
+      previousFrame = nextFrameDeadline(now);
       const s = current.current;
       const t = reducedMotion ? 0 : now * 0.001;
       const life = lifecycle.update(s.open, now, reducedMotion);
@@ -339,6 +349,7 @@ export default function PortalCanvas({
         renderer.info.memory.geometries,
       );
       renderer.setRenderTarget(rt);
+      renderer.info.reset();
       renderer.clippingPlanes = [linked.plane];
       if (disk.visible) renderer.render(destination, dc);
       renderer.clippingPlanes = [];
@@ -349,6 +360,22 @@ export default function PortalCanvas({
         onMetrics(
           Math.round((frames * 1000) / (now - last)),
           renderer.info.render.calls,
+          {
+            frameMs:
+              durations.reduce((a, b) => a + b, 0) /
+              Math.max(1, durations.length),
+            trend: durations.slice(-30),
+            width: renderer.domElement.width,
+            height: renderer.domElement.height,
+            particles: portal.visible ? count : 0,
+            calls: renderer.info.render.calls,
+            triangles: renderer.info.render.triangles,
+            geometries: renderer.info.memory.geometries,
+            textures: renderer.info.memory.textures,
+            targetWidth: rt.width,
+            targetHeight: rt.height,
+            backend: "WebGL2",
+          },
         );
         frames = 0;
         last = now;
@@ -376,6 +403,7 @@ export default function PortalCanvas({
       );
       rt.dispose();
       renderer.dispose();
+      renderer.forceContextLoss();
       renderer.domElement.remove();
     };
   }, [quality, onMetrics, onError]);

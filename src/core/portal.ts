@@ -20,7 +20,9 @@ export const initialPortal: PortalState = {
   intensity: 1,
   x: 0,
   y: 0,
-  viewX:0,yaw:0,lighting:'Neutral',
+  viewX: 0,
+  yaw: 0,
+  lighting: "Neutral",
 };
 export function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));

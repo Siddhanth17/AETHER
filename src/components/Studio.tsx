@@ -22,6 +22,8 @@ import {
   X,
 } from "lucide-react";
 import PortalCanvas from "./PortalCanvas";
+import PerformancePanel from "./PerformancePanel";
+import { AdaptiveQuality, type RenderMetrics } from "@/renderer/performance";
 import { PortalAudio } from "@/audio/PortalAudio";
 import {
   screenToPortalPlane,
@@ -58,6 +60,10 @@ export default function Studio() {
     [preferWorker, setPreferWorker] = useState(true),
     [portal, setPortal] = useState<PortalState>(initialPortal),
     [quality, setQuality] = useState<Quality>("Balanced"),
+    [adaptive, setAdaptive] = useState(false),
+    [effectiveQuality, setEffectiveQuality] = useState<Quality>("Balanced"),
+    [performanceMetrics, setPerformanceMetrics] =
+      useState<RenderMetrics | null>(null),
     [settings, setSettings] = useState(false),
     [left, setLeft] = useState(true),
     [right, setRight] = useState(true),
@@ -91,6 +97,21 @@ export default function Studio() {
     drag = useRef(false),
     points = useRef<{ x: number; y: number }[]>([]),
     lastGesture = useRef(0);
+  const adaptation = useRef(new AdaptiveQuality());
+  const performanceSettings = useRef({
+    quality,
+    adaptive,
+    effectiveQuality,
+    recording,
+  });
+  useEffect(() => {
+    performanceSettings.current = {
+      quality,
+      adaptive,
+      effectiveQuality,
+      recording,
+    };
+  }, [quality, adaptive, effectiveQuality, recording]);
   const patch = useCallback(
     (value: Partial<PortalState>) => setPortal((p) => ({ ...p, ...value })),
     [],
@@ -163,9 +184,22 @@ export default function Studio() {
     [patch, mirror, calibrating, calibration, anchor],
   );
   const { video: videoRef, ...camera } = useCamera(sample, calibration);
-  const metrics = useCallback((f: number, c: number) => {
+  const metrics = useCallback((f: number, c: number, m?: RenderMetrics) => {
       setFps(f);
       setCalls(c);
+      if (m) {
+        setPerformanceMetrics(m);
+        const s = performanceSettings.current;
+        if (s.adaptive && !s.recording)
+          setEffectiveQuality(
+            adaptation.current.update(
+              m.frameMs,
+              performance.now(),
+              s.effectiveQuality,
+              s.quality,
+            ),
+          );
+      }
     }, []),
     error = useCallback((m: string) => setGraphicsError(m), []);
   useEffect(() => {
@@ -176,7 +210,15 @@ export default function Studio() {
           localStorage.getItem("aether-calibration") ?? "null",
         );
         if (validCalibration(c)) setCalibration(c);
-        if (q === "Low" || q === "Balanced" || q === "High") setQuality(q);
+        if (
+          q === "Low" ||
+          q === "Balanced" ||
+          q === "High" ||
+          q === "Cinematic"
+        ) {
+          setQuality(q);
+          setEffectiveQuality(q);
+        }
       } catch {}
     });
     return () => cancelAnimationFrame(id);
@@ -369,9 +411,17 @@ export default function Studio() {
         throw new Error();
       setPortal({
         ...p,
-        viewX:typeof p.viewX==='number'&&Number.isFinite(p.viewX)?clamp(p.viewX,-3,3):0,
-        yaw:typeof p.yaw==='number'&&Number.isFinite(p.yaw)?clamp(p.yaw,-Math.PI,Math.PI):0,
-        lighting:['Neutral','Moonlight','Warm'].includes(p.lighting)?p.lighting:'Neutral',
+        viewX:
+          typeof p.viewX === "number" && Number.isFinite(p.viewX)
+            ? clamp(p.viewX, -3, 3)
+            : 0,
+        yaw:
+          typeof p.yaw === "number" && Number.isFinite(p.yaw)
+            ? clamp(p.yaw, -Math.PI, Math.PI)
+            : 0,
+        lighting: ["Neutral", "Moonlight", "Warm"].includes(p.lighting)
+          ? p.lighting
+          : "Neutral",
         scale: clamp(p.scale, 0.4, 1.8),
         intensity: clamp(p.intensity, 0, 2),
         x: clamp(p.x, -12, 12),
@@ -495,7 +545,7 @@ export default function Studio() {
         <PortalCanvas
           key={renderKey}
           state={portal}
-          quality={quality}
+          quality={adaptive ? effectiveQuality : quality}
           onMetrics={metrics}
           onError={error}
         />
@@ -831,6 +881,12 @@ export default function Studio() {
                 <button onClick={save}>Save preset</button>
                 <button onClick={load}>Load preset</button>
               </div>
+              <PerformancePanel
+                metrics={performanceMetrics}
+                quality={adaptive ? effectiveQuality : quality}
+                latency={diagnostics.latency}
+                recording={recording}
+              />
             </aside>
           )}
           <div className="portal-caption">
@@ -845,7 +901,7 @@ export default function Studio() {
               {fps} FPS <span className="divider">/</span>
               {calls} draw calls <span className="divider">/</span>
               <button onClick={() => setSettings(true)}>
-                {quality} quality
+                {adaptive ? effectiveQuality : quality} quality
               </button>
             </div>
             <div className="record-controls">
@@ -924,10 +980,12 @@ export default function Studio() {
             <label htmlFor="quality">Render quality</label>
             <select
               id="quality"
+              disabled={recording}
               value={quality}
               onChange={(e) => {
                 const q = e.target.value as Quality;
                 setQuality(q);
+                setEffectiveQuality(q);
                 try {
                   localStorage.setItem("aether-quality", q);
                 } catch {
@@ -938,7 +996,19 @@ export default function Studio() {
               <option>Low</option>
               <option>Balanced</option>
               <option>High</option>
+              <option>Cinematic</option>
             </select>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={adaptive}
+                onChange={(e) => {
+                  setAdaptive(e.target.checked);
+                  setEffectiveQuality(quality);
+                }}
+              />{" "}
+              Adaptive quality (capped at selected preset)
+            </label>
             <label htmlFor="device">Camera</label>
             <select
               id="device"

@@ -32,6 +32,12 @@ import {
 import { useCamera, type TrackingSample } from "@/tracking/useCamera";
 import { cameraToScreen } from "@/tracking/gestures";
 import HandOverlay from "@/tracking/HandOverlay";
+import CalibrationPanel from "@/tracking/CalibrationPanel";
+import {
+  validCalibration,
+  calibratedPoint,
+  type Calibration,
+} from "@/tracking/calibration";
 export default function Studio() {
   useEffect(() => {
     document.documentElement.dataset.aetherReady = "true";
@@ -40,6 +46,10 @@ export default function Studio() {
     };
   }, []);
   const [studio, setStudio] = useState(false),
+    [calibration, setCalibration] = useState<Calibration | null>(null),
+    [calibrating, setCalibrating] = useState(false),
+    [rawSample, setRawSample] = useState<TrackingSample | null>(null),
+    [preferWorker, setPreferWorker] = useState(true),
     [portal, setPortal] = useState<PortalState>(initialPortal),
     [quality, setQuality] = useState<Quality>("Balanced"),
     [settings, setSettings] = useState(false),
@@ -80,6 +90,9 @@ export default function Studio() {
   );
   const sample = useCallback(
     (s: TrackingSample) => {
+      setRawSample(s);
+      const calibrated =
+        s.point && calibration ? calibratedPoint(s.point, calibration) : null;
       const bounds = canvasHost.current?.getBoundingClientRect();
       if (s.source && bounds) {
         const map = (p: { x: number; y: number }) =>
@@ -91,23 +104,51 @@ export default function Studio() {
         };
       }
       setDiagnostics(s);
+      if (calibrating) return;
+      if (calibrated)
+        s = {
+          ...s,
+          point: {
+            x: mirror ? 1 - calibrated.x : calibrated.x,
+            y: calibrated.y,
+          },
+        };
       const now = performance.now();
       if (s.circle) {
-        patch({ open: true });
+        patch({
+          open: true,
+          ...(s.point
+            ? {
+                x: clamp((s.point.x - 0.5) * 4, -2, 2),
+                y: clamp((0.5 - s.point.y) * 3, -1.5, 1.5),
+              }
+            : {}),
+        });
         setNotice("Circle recognized · portal opened");
       }
       if (s.gesture === "Pinch" && s.point)
         patch({ x: (s.point.x - 0.5) * 4, y: (0.5 - s.point.y) * 3 });
       if (s.span !== null && s.gesture === "Open palm")
-        patch({ scale: s.span });
+        patch({
+          scale: calibration
+            ? clamp(
+                0.4 +
+                  ((s.span - calibration.scaleMin) /
+                    (calibration.scaleMax - calibration.scaleMin)) *
+                    1.4,
+                0.4,
+                1.8,
+              )
+            : s.span,
+        });
       if (s.gesture === "Fist" && now - lastGesture.current > 2000) {
         patch({ open: false });
         lastGesture.current = now;
       }
     },
-    [patch, mirror],
+    [patch, mirror, calibrating, calibration],
   );
-  const { video: videoRef, ...camera } = useCamera(sample);
+  const { video: videoRef, ...camera } = useCamera(sample, calibration);
   const metrics = useCallback((f: number, c: number) => {
       setFps(f);
       setCalls(c);
@@ -117,6 +158,10 @@ export default function Studio() {
     const id = requestAnimationFrame(() => {
       try {
         const q = localStorage.getItem("aether-quality");
+        const c = JSON.parse(
+          localStorage.getItem("aether-calibration") ?? "null",
+        );
+        if (validCalibration(c)) setCalibration(c);
         if (q === "Low" || q === "Balanced" || q === "High") setQuality(q);
       } catch {}
     });
@@ -129,7 +174,12 @@ export default function Studio() {
   }, [notice]);
   useEffect(() => {
     const keyboard = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).matches("input,select,textarea")) return;
+      if (
+        (e.target as HTMLElement).matches("input,select,textarea,button") ||
+        calibrating ||
+        settings
+      )
+        return;
       if (e.code === "Space" && studio) {
         e.preventDefault();
         setPortal((p) => ({ ...p, open: !p.open }));
@@ -145,7 +195,7 @@ export default function Studio() {
     };
     window.addEventListener("keydown", keyboard);
     return () => window.removeEventListener("keydown", keyboard);
-  }, [studio]);
+  }, [studio, calibrating, settings]);
   useEffect(
     () => () => {
       if (recorder.current?.state === "recording") recorder.current.stop();
@@ -369,7 +419,7 @@ export default function Studio() {
               onClick={() =>
                 camera.active || camera.loading
                   ? camera.stop()
-                  : void camera.start(device, resolution)
+                  : void camera.start(device, resolution, preferWorker)
               }
             >
               <Camera size={16} />
@@ -681,7 +731,27 @@ export default function Studio() {
               </div>
               <div className="inspector-section">
                 <div className="panel-heading">Tracking diagnostics</div>
-                <dl>
+                <button
+                  className="tool"
+                  onClick={() => {
+                    if (!camera.active) {
+                      setNotice("Enable your camera before calibration.");
+                      return;
+                    }
+                    setCalibrating(true);
+                  }}
+                >
+                  Calibrate hands
+                </button>
+                <span>
+                  {calibration ? "Calibration saved" : "Not calibrated"}
+                </span>
+                <dl
+                  data-inference-ms={diagnostics.latency}
+                  data-blocking-ms={diagnostics.blockingMs ?? 0}
+                  data-backend={diagnostics.backend ?? "Idle"}
+                  data-sample-at={diagnostics.sampleTime ?? 0}
+                >
                   <dt>Input</dt>
                   <dd>{camera.active ? "Camera" : "Mouse + keyboard"}</dd>
                   <dt>Gesture</dt>
@@ -690,6 +760,16 @@ export default function Studio() {
                   <dd>{Math.round(diagnostics.confidence * 100)}%</dd>
                   <dt>Inference</dt>
                   <dd>{diagnostics.latency.toFixed(1)} ms</dd>
+                  <dt>Backend</dt>
+                  <dd>{diagnostics.backend ?? "Idle"}</dd>
+                  {diagnostics.workerError && (
+                    <>
+                      <dt>Worker status</dt>
+                      <dd>{diagnostics.workerError}</dd>
+                    </>
+                  )}
+                  <dt>Main blocking</dt>
+                  <dd>{(diagnostics.blockingMs ?? 0).toFixed(2)} ms</dd>
                 </dl>
               </div>
               <div className="button-pair">
@@ -830,6 +910,14 @@ export default function Studio() {
             <label className="check">
               <input
                 type="checkbox"
+                checked={preferWorker}
+                onChange={(e) => setPreferWorker(e.target.checked)}
+              />{" "}
+              Prefer worker tracking (restart camera)
+            </label>
+            <label className="check">
+              <input
+                type="checkbox"
                 checked={mirror}
                 onChange={(e) => setMirror(e.target.checked)}
               />{" "}
@@ -855,6 +943,22 @@ export default function Studio() {
             </button>
           </section>
         </div>
+      )}
+      {calibrating && rawSample && (
+        <CalibrationPanel
+          sample={rawSample}
+          onCancel={() => setCalibrating(false)}
+          onComplete={(c) => {
+            try {
+              localStorage.setItem("aether-calibration", JSON.stringify(c));
+              setCalibration(c);
+              setCalibrating(false);
+              setNotice("Calibration saved on this device.");
+            } catch {
+              setNotice("Could not save calibration.");
+            }
+          }}
+        />
       )}
     </main>
   );

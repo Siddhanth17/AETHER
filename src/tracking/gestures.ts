@@ -7,6 +7,12 @@ export interface GestureResult {
   circle: boolean;
 }
 export class GestureEngine {
+  private enter = 0.32;
+  private exit = 0.48;
+  configure(enter: number, exit: number) {
+    this.enter = clamp(enter, 0.15, 0.5);
+    this.exit = clamp(exit, this.enter + 0.05, 0.7);
+  }
   private active: Gesture = "Move";
   private candidate: Gesture = "Move";
   private since = 0;
@@ -31,6 +37,13 @@ export class GestureEngine {
     if (now - this.last > 500) {
       this.reset();
     }
+    if (
+      hands[1] &&
+      Math.hypot(hand[0].x - hands[1][0].x, hand[0].y - hands[1][0].y) < 0.08
+    ) {
+      this.reset();
+      return { gesture: "Move", point: null, span: null, circle: false };
+    }
     this.last = now;
     const distance = (a: number, b: number) =>
       Math.hypot(hand[a].x - hand[b].x, hand[a].y - hand[b].y);
@@ -40,7 +53,7 @@ export class GestureEngine {
       (i) => distance(i, 0) > distance(i - 2, 0) * 1.15,
     ).length;
     const proposed: Gesture =
-      pinch < (this.active === "Pinch" ? 0.48 : 0.32)
+      pinch < (this.active === "Pinch" ? this.exit : this.enter)
         ? "Pinch"
         : extended === 4
           ? "Open palm"
@@ -69,6 +82,13 @@ export class GestureEngine {
     ) {
       circle = true;
       this.lastCircle = now;
+      this.smooth = this.history.reduce(
+        (sum, p) => ({
+          x: sum.x + p.x / this.history.length,
+          y: sum.y + p.y / this.history.length,
+        }),
+        { x: 0, y: 0 },
+      );
       this.history = [];
     }
     const second = hands[1];

@@ -17,3 +17,11 @@ Limits: single portal, rigid transform mapping; no physical camera pose estimati
 Timed detection, formation, charging, reveal, stabilization and collapse; smooth interruption-safe envelopes; luminous seed point; original line-stroke runes; GPU vertex swirl and soft particle sprites. Destination aperture reveals independently of the energy ring. Reduced motion resolves directly to stable/closed.
 
 Types, lint, 14 unit tests, production build and all seven browser scenarios pass (30.1 s browser suite). No added effects library or full-screen bloom pass. Art uses a bounded additive edge aura; target-device GPU performance is not yet measured. Phase snapshots and comprehensive lifecycle acceptance are expanded in the final gate.
+
+## Phase 4 — calibration and worker tracking
+
+Added guided detection, explicit hand preference, palm/pinch/fist holds, motion-circle test, measured reach and two-hand scale ranges, schema-validated local profiles, adaptive pinch thresholds, dominant-hand selection, overlap suppression and calibration-paused actions. Public classic worker uses the actual MediaPipe runtime, CPU model and transferable ImageBitmap; one frame in flight. Diagnostics identify worker versus main-thread fallback and show inference and dispatch/main blocking separately. Worker initialization allows 45 seconds for cold asset downloads; cancellation remains immediate.
+
+Actual runtime smoke: first worker attempt fell back; a retry processed synthetic camera frames in the worker. The subsequent twelve-result-per-backend comparison passed in 20.1 seconds with real model inference. Measurements are in tracking-timing.json. Synthetic browser camera and pure landmark fixtures are not physical-camera validation. No main-thread dispatch measurement includes asynchronous bitmap creation or total CPU utilization.
+
+Types/lint pass; browser regression 7/7 (37.9 s) plus the explicit real-runtime smoke passes. Production build initially failed twice on generated `.next` directory EPERM; the same build succeeded with filesystem permission escalation. Manual lighting/occlusion/device procedure is in HARDWARE_ACCEPTANCE.md; physical validation and consented recorded-camera fixtures remain pending.

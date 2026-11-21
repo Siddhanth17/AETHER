@@ -14,7 +14,10 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
     launchOptions: {
       executablePath: process.env.AETHER_BROWSER_PATH,
-      args: ["--enable-unsafe-swiftshader"],
+      args: [
+        "--enable-unsafe-swiftshader",
+        "--use-fake-device-for-media-stream",
+      ],
     },
   },
   reporter: "list",

@@ -10,6 +10,8 @@ Foundation quality gates pass: strict types, lint, three unit tests, production 
 
 Milestones 1–3 are partial. Camera and real hand tracking require hardware acceptance before milestones 2–3 can be declared complete. No live-camera success is claimed from synthetic tests. Exact intro, calibration, spatial audio, true portal clipping and adaptive quality remain open.
 
+Tracking follow-up adds a pure gesture engine, 180 ms activation, pinch hysteresis, missing/stale frame reset, both-hand landmark overlays and mirror/crop mapping. Eight unit tests now cover geometry recognition and synthetic landmark behavior. Handedness classification score is explicitly labeled as such, not tracking confidence.
+
 ## Next
 
 Finish Portal Ritual acceptance, add calibration and landmark fixtures, move inference off the render thread where compatible, add real spatial audio and portal clipping. Only then expand to spells/world editing.

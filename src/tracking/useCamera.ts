@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision";
-import { clamp, isCircle, type Point } from "@/core/portal";
+import { type Point } from "@/core/portal";
+import { GestureEngine } from "./gestures";
 export interface TrackingSample {
   gesture: string;
   confidence: number;
@@ -9,6 +10,8 @@ export interface TrackingSample {
   point: Point | null;
   span: number | null;
   circle: boolean;
+  landmarks?: Point[][];
+  source?: { width: number; height: number };
 }
 export function useCamera(onSample: (sample: TrackingSample) => void) {
   const video = useRef<HTMLVideoElement>(null);
@@ -107,12 +110,8 @@ export function useCamera(onSample: (sample: TrackingSample) => void) {
         tracker.current = model;
         setLoading(false);
         let previous = -1,
-          lastInference = 0,
-          candidate = "",
-          stable = 0,
-          lastCircle = 0;
-        let history: Point[] = [];
-        let smooth: Point | null = null;
+          lastInference = 0;
+        const engine = new GestureEngine();
         const tick = (now: number) => {
           frame.current = requestAnimationFrame(tick);
           const v = video.current;
@@ -128,76 +127,13 @@ export function useCamera(onSample: (sample: TrackingSample) => void) {
           try {
             const began = performance.now();
             const result = model.detectForVideo(v, now);
-            const hand = result.landmarks[0];
-            if (!hand) {
-              history = [];
-              stable = 0;
-              smooth = null;
-              callback.current({
-                gesture: "No hands",
-                confidence: 0,
-                latency: performance.now() - began,
-                point: null,
-                span: null,
-                circle: false,
-              });
-              return;
-            }
-            const distance = (a: number, b: number) =>
-              Math.hypot(hand[a].x - hand[b].x, hand[a].y - hand[b].y);
-            const palm = Math.max(0.02, distance(0, 9));
-            const pinch = distance(4, 8) / palm;
-            const extended = [8, 12, 16, 20].filter(
-              (i) => distance(i, 0) > distance(i - 2, 0) * 1.15,
-            ).length;
-            const gesture =
-              pinch < 0.35
-                ? "Pinch"
-                : extended >= 4
-                  ? "Open palm"
-                  : extended === 0
-                    ? "Fist"
-                    : "Move";
-            if (gesture === candidate) stable++;
-            else {
-              candidate = gesture;
-              stable = 1;
-            }
-            const raw = { x: 1 - hand[8].x, y: hand[8].y };
-            smooth = smooth
-              ? {
-                  x: smooth.x * 0.65 + raw.x * 0.35,
-                  y: smooth.y * 0.65 + raw.y * 0.35,
-                }
-              : raw;
-            history.push(raw);
-            if (history.length > 70) history.shift();
-            let circle = false;
-            if (
-              history.length >= 24 &&
-              now - lastCircle > 2500 &&
-              isCircle(history)
-            ) {
-              circle = true;
-              lastCircle = now;
-              history = [];
-            }
-            const second = result.landmarks[1];
-            const span = second
-              ? clamp(
-                  Math.hypot(hand[0].x - second[0].x, hand[0].y - second[0].y) *
-                    3,
-                  0.4,
-                  1.8,
-                )
-              : null;
+            const interpreted = engine.update(result.landmarks, now);
             callback.current({
-              gesture: stable >= 3 ? gesture : "Move",
+              ...interpreted,
               confidence: result.handedness[0]?.[0]?.score ?? 0,
               latency: performance.now() - began,
-              point: smooth,
-              span,
-              circle,
+              landmarks: result.landmarks,
+              source: { width: v.videoWidth, height: v.videoHeight },
             });
           } catch {
             cancelAnimationFrame(frame.current);

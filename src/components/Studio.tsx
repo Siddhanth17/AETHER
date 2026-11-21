@@ -30,6 +30,8 @@ import {
   type Quality,
 } from "@/core/portal";
 import { useCamera, type TrackingSample } from "@/tracking/useCamera";
+import { cameraToScreen } from "@/tracking/gestures";
+import HandOverlay from "@/tracking/HandOverlay";
 export default function Studio() {
   useEffect(() => {
     document.documentElement.dataset.aetherReady = "true";
@@ -78,6 +80,16 @@ export default function Studio() {
   );
   const sample = useCallback(
     (s: TrackingSample) => {
+      const bounds = canvasHost.current?.getBoundingClientRect();
+      if (s.source && bounds) {
+        const map = (p: { x: number; y: number }) =>
+          cameraToScreen(p, s.source!, bounds, mirror);
+        s = {
+          ...s,
+          point: s.point ? map(s.point) : null,
+          landmarks: s.landmarks?.map((hand) => hand.map(map)),
+        };
+      }
       setDiagnostics(s);
       const now = performance.now();
       if (s.circle) {
@@ -93,7 +105,7 @@ export default function Studio() {
         lastGesture.current = now;
       }
     },
-    [patch],
+    [patch, mirror],
   );
   const { video: videoRef, ...camera } = useCamera(sample);
   const metrics = useCallback((f: number, c: number) => {
@@ -402,6 +414,9 @@ export default function Studio() {
           onMetrics={metrics}
           onError={error}
         />
+        {camera.active && diagnostics.landmarks && (
+          <HandOverlay hands={diagnostics.landmarks} />
+        )}
         {studio && (
           <div
             className={`interaction ${draw ? "drawing" : ""}`}
@@ -651,7 +666,7 @@ export default function Studio() {
                   <dd>{camera.active ? "Camera" : "Mouse + keyboard"}</dd>
                   <dt>Gesture</dt>
                   <dd>{diagnostics.gesture}</dd>
-                  <dt>Confidence</dt>
+                  <dt>Hand label score</dt>
                   <dd>{Math.round(diagnostics.confidence * 100)}%</dd>
                   <dt>Inference</dt>
                   <dd>{diagnostics.latency.toFixed(1)} ms</dd>

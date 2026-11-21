@@ -23,3 +23,9 @@ First TypeScript attempt identified an unclosed JSX handler, corrected before su
 Other resolved verification failures: React ref updates moved into effects; unit discovery scoped away from Playwright; missing default Chromium build handled by explicit installed executable; test clicked a deliberately non-interactive heading (changed to interaction surface); external font import removed; UI test now waits for hydration before clicking server-rendered controls. Forced software rendering with 1080p recording stalled the stop click; native GPU selection with 720p passed. Do not infer 1080p recording performance from the passing 720p test.
 
 Not yet verified: physical webcam, prerecorded tracking fixtures, hand gesture accuracy, camera disconnection, two-hand scaling, encoder errors, context loss, long-running memory behavior, internet multiplayer (not implemented).
+
+## Tracking follow-up
+
+- `npm run typecheck`: passed.
+- `npm test`: 8/8 passed, 455 ms runner duration. Five additional synthetic landmark tests cover open palm/pinch/fist stabilization, one-frame rejection, tracking-loss reset, pinch hysteresis, malformed/stale evidence and mirror/crop coordinates. These are synthetic fixtures, not recorded-camera acceptance.
+- `npm run lint`: passed with zero errors/warnings. `npm run build`: passed. Browser regression: 6/6 passed in 18.7 seconds, including another real local WebM export.

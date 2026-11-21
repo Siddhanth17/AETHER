@@ -26,7 +26,7 @@ Record scene captures the rendered scene plus the camera when enabled, with an e
 - `npm run typecheck` — strict TypeScript
 - `npm run lint` — Next.js and TypeScript ESLint rules
 - `npm test` — deterministic interaction tests
-- `npm run test:e2e` — Playwright browser suite (run the dev server first; install Chromium with `npx playwright install chromium`). `AETHER_BROWSER_PATH` can select an existing Chromium executable.
+- `npm run test:e2e` — Playwright browser suite (starts the dev server automatically; install Chromium with `npx playwright install chromium`). `AETHER_BROWSER_PATH` can select an existing Chromium executable.
 - `npm run build` — production static export in `out/`
 - `npm run format` — Prettier
 

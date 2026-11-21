@@ -29,3 +29,5 @@ Not yet verified: physical webcam, prerecorded tracking fixtures, hand gesture a
 - `npm run typecheck`: passed.
 - `npm test`: 8/8 passed, 455 ms runner duration. Five additional synthetic landmark tests cover open palm/pinch/fist stabilization, one-frame rejection, tracking-loss reset, pinch hysteresis, malformed/stale evidence and mirror/crop coordinates. These are synthetic fixtures, not recorded-camera acceptance.
 - `npm run lint`: passed with zero errors/warnings. `npm run build`: passed. Browser regression: 6/6 passed in 18.7 seconds, including another real local WebM export.
+
+CI now installs Chromium and runs the same browser suite with Playwright-managed server startup. GitHub-hosted CI status is not claimed as verified; these results are local executions.

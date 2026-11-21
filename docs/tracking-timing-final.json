@@ -1,0 +1,103 @@
+{
+  "scenario": "Chromium synthetic camera, 1280x720 request; twelve fresh inference results per backend. Not physical camera acceptance.",
+  "worker": [
+    {
+      "inferenceMs": 49.300000071525574,
+      "blockingMs": 0.09999990463256836
+    },
+    {
+      "inferenceMs": 50.700000047683716,
+      "blockingMs": 0.19999992847442627
+    },
+    {
+      "inferenceMs": 56.199999928474426,
+      "blockingMs": 0.10000002384185791
+    },
+    {
+      "inferenceMs": 40.5,
+      "blockingMs": 0.09999990463256836
+    },
+    {
+      "inferenceMs": 56.799999952316284,
+      "blockingMs": 0
+    },
+    {
+      "inferenceMs": 84.5,
+      "blockingMs": 0.09999990463256836
+    },
+    {
+      "inferenceMs": 84.5,
+      "blockingMs": 0.09999990463256836
+    },
+    {
+      "inferenceMs": 45.200000047683716,
+      "blockingMs": 0
+    },
+    {
+      "inferenceMs": 49,
+      "blockingMs": 0.10000002384185791
+    },
+    {
+      "inferenceMs": 44.200000047683716,
+      "blockingMs": 0.10000002384185791
+    },
+    {
+      "inferenceMs": 43.200000047683716,
+      "blockingMs": 0
+    },
+    {
+      "inferenceMs": 43.10000002384186,
+      "blockingMs": 0
+    }
+  ],
+  "main": [
+    {
+      "inferenceMs": 51.39999997615814,
+      "blockingMs": 51.39999997615814
+    },
+    {
+      "inferenceMs": 46.39999997615814,
+      "blockingMs": 46.39999997615814
+    },
+    {
+      "inferenceMs": 49.09999990463257,
+      "blockingMs": 49.09999990463257
+    },
+    {
+      "inferenceMs": 53.300000071525574,
+      "blockingMs": 53.300000071525574
+    },
+    {
+      "inferenceMs": 50.699999928474426,
+      "blockingMs": 50.699999928474426
+    },
+    {
+      "inferenceMs": 47,
+      "blockingMs": 47
+    },
+    {
+      "inferenceMs": 43.10000002384186,
+      "blockingMs": 43.10000002384186
+    },
+    {
+      "inferenceMs": 35,
+      "blockingMs": 35
+    },
+    {
+      "inferenceMs": 69.20000004768372,
+      "blockingMs": 69.20000004768372
+    },
+    {
+      "inferenceMs": 41.799999952316284,
+      "blockingMs": 41.799999952316284
+    },
+    {
+      "inferenceMs": 43.5,
+      "blockingMs": 43.5
+    },
+    {
+      "inferenceMs": 40.90000009536743,
+      "blockingMs": 40.90000009536743
+    }
+  ]
+}

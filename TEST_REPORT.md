@@ -2,6 +2,20 @@
 
 Executed 2026-11-21 on Windows, Node 22.19.0, npm 10.9.3, installed Chromium build 1254.
 
+## Current operation — Portal Ascension
+
+26 unit tests, strict TypeScript, ESLint and production export pass. Full browser acceptance includes actual MediaPipe worker/main inference on synthetic video, original synthetic landmark trajectories through the full calibration/portal/export UI, camera device/error/cleanup substitutes, context loss/recovery, audio lifecycle, 720p/1080p decode/audio checks, modal/reduced motion, four viewports and measured framebuffer restoration. Executed outcomes follow.
+
+Final complete run: **23/23 passed in 2.5 minutes**, with AETHER_MODEL_SMOKE=1 and AETHER_BENCHMARK=1. A subsequent cleanup review added a 24th distinct case: granted camera stream plus rejected video.play. It initially failed, the shared stop path was applied on initialization failure, then **all 3 camera cases passed in 18.0 seconds**. Final static/unit/build gates passed again after correction. Default hosted CI now runs 22 deterministic cases and skips the two explicit network-dependent ones.
+
+Hosted acceptance initially failed two tests because the Linux runner's native fake-camera device returned NotSupported before the intended test behavior. Public GitHub annotations identified both. Deterministic journey/startup cases now use an explicit animated CanvasCaptureMediaStreamTrack fixture; the actual MediaPipe smoke/benchmark evidence remains separate. The three camera and two journey/context cases pass locally after this fixture correction (5/5, 50.0 s). CI now emits the GitHub reporter so future failure details are available through public check annotations without protected-log credentials.
+
+An initial full run passed 21/23 cases. The model-smoke locator was ambiguous after the performance panel added a second `dl`; it now targets tracking diagnostics. An exact framebuffer hash differed by a single channel-level value despite visually identical restoration. The test now records mean absolute channel difference (<0.25/255) and fraction differing by >8 (<0.5%), while aperture/outside/back-facing alpha remains exact. A focused rerun passed both corrected cases; measured mean difference was 0.000000227 with no >8 changes. This is a quantified GPU image comparison rather than a claim of byte-identical cross-driver output.
+
+Runtime MediaPipe emits upstream informational/warning messages about OpenGL checking, feedback signatures and normalized ROI projection; no application exception is inferred from those messages. Physical lighting/hand accuracy, consented recorded-human fixtures, long-running VRAM/thermal behavior and hands-on Edge validation remain pending. Synthetic footage does not satisfy those hardware gates.
+
+Details and phase commits/results are in docs/ASCENSION_REPORT.md. The foundation reports below are historical results, not current missing-feature lists.
+
 ## Final foundation increment
 
 - `npm run typecheck`: passed.
@@ -22,7 +36,7 @@ First TypeScript attempt identified an unclosed JSX handler, corrected before su
 
 Other resolved verification failures: React ref updates moved into effects; unit discovery scoped away from Playwright; missing default Chromium build handled by explicit installed executable; test clicked a deliberately non-interactive heading (changed to interaction surface); external font import removed; UI test now waits for hydration before clicking server-rendered controls. Forced software rendering with 1080p recording stalled the stop click; native GPU selection with 720p passed. Do not infer 1080p recording performance from the passing 720p test.
 
-Not yet verified: physical webcam, prerecorded tracking fixtures, hand gesture accuracy, camera disconnection, two-hand scaling, encoder errors, context loss, long-running memory behavior, internet multiplayer (not implemented).
+At the foundation checkpoint, these were unverified: physical webcam, prerecorded tracking fixtures, hand gesture accuracy, camera disconnection, two-hand scaling, encoder errors, context loss, long-running memory behavior, internet multiplayer. Ascension now covers synthetic two-hand scaling, disconnection, encoder errors and context recovery; physical/human-video and sustained-memory acceptance remain pending. Multiplayer is outside this operation.
 
 ## Tracking follow-up
 
@@ -30,4 +44,4 @@ Not yet verified: physical webcam, prerecorded tracking fixtures, hand gesture a
 - `npm test`: 8/8 passed, 455 ms runner duration. Five additional synthetic landmark tests cover open palm/pinch/fist stabilization, one-frame rejection, tracking-loss reset, pinch hysteresis, malformed/stale evidence and mirror/crop coordinates. These are synthetic fixtures, not recorded-camera acceptance.
 - `npm run lint`: passed with zero errors/warnings. `npm run build`: passed. Browser regression: 6/6 passed in 18.7 seconds, including another real local WebM export.
 
-CI now installs Chromium and runs the same browser suite with Playwright-managed server startup. GitHub-hosted CI status is not claimed as verified; these results are local executions.
+CI installs Chromium and runs deterministic browser cases with managed server startup. Hosted runs through `2545dbe` were inspected and completed successfully; its run is https://github.com/Siddhanth17/AETHER/actions/runs/44917380255. Explicit model-smoke and benchmark flags are exercised locally and disabled by default in CI to avoid depending on third-party model availability.

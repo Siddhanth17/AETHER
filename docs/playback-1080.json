@@ -1,9 +1,10 @@
 {
-  "bytes": 1453846,
+  "bytes": 1532775,
   "width": 1920,
   "height": 1080,
-  "time": 0.101276,
+  "time": 0.121194,
   "decoded": 6,
   "camera": "Synthetic canvas stream",
-  "audioRequested": true
+  "audioRequested": true,
+  "audioTrackEncoded": true
 }

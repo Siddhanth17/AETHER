@@ -14,6 +14,7 @@ test("intro can be skipped and settings trap focus and close with Escape", async
     .getByRole("button", { name: "Open settings", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole('button',{name:'Close settings',exact:true})).toBeFocused();
   await page.keyboard.press("Shift+Tab");
   expect(
     await page.evaluate(() =>

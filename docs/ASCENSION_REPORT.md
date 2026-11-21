@@ -51,3 +51,5 @@ Dashboard reports measured render intervals/trend, actual internal dimensions, p
 Added a 2.3-second point/ring/wordmark intro, explicit Skip intro, reduced-motion bypass, native modal semantics with explicit focus wrapping and Escape/focus return, and more readable panel text. Responsive landing/studio screenshots still render at all four sizes.
 
 Nine of ten initial UI/audio/portal cases passed; reverse Tab exposed browser-chrome focus escape. An explicit wrap corrected it; both keyboard/reduced-motion tests then passed (10.9 s). Existing eight audio/portal/layout tests also passed in the initial run. Types/lint/build pass. UI and recording are staged separately so history preserves the two changes.
+
+A later combined run exposed an intermittent initial-focus race. Modal startup now explicitly focuses its first control and handles focus on the dialog root; the test awaits initial focus. Three repeated keyboard/reduced-motion runs pass (6/6, 23.3 s).

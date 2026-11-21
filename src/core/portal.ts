@@ -8,6 +8,8 @@ export interface PortalState {
   intensity: number;
   x: number;
   y: number;
+  viewX?: number;
+  yaw?: number;
 }
 export const initialPortal: PortalState = {
   open: true,

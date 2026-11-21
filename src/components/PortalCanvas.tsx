@@ -2,6 +2,7 @@
 import { useEffect, useRef } from "react";
 import * as T from "three";
 import type { PortalState, Quality } from "@/core/portal";
+import { linkPortalCamera, targetSize } from "@/renderer/portalCamera";
 
 interface Props {
   state: PortalState;
@@ -51,14 +52,16 @@ export default function PortalCanvas({
     const destination = new T.Scene();
     destination.background = new T.Color("#111c31");
     destination.fog = new T.FogExp2("#1b2640", 0.035);
-    const dc = new T.PerspectiveCamera(42, 1, 0.1, 80);
-    dc.position.set(0, 2.1, 6);
-    dc.lookAt(0, 0.2, 0);
+    const dc = new T.PerspectiveCamera();
+    const exit = new T.Object3D();
+    exit.position.set(0, 0, 3);
+    exit.rotation.y = Math.PI;
     destination.add(new T.HemisphereLight("#c5e4ff", "#282039", 3));
     const sun = new T.DirectionalLight("#ffe4bb", 4);
     sun.position.set(3, 6, 4);
     destination.add(sun);
     const island = new T.Group();
+    island.rotation.x = 0.25;
     destination.add(island);
     const ground = new T.Mesh(
       new T.CylinderGeometry(1.65, 0.25, 1.6, quality === "Low" ? 12 : 32, 5),
@@ -143,10 +146,18 @@ export default function PortalCanvas({
     const aura = new T.Mesh(new T.PlaneGeometry(4.4, 4.4), auraMaterial);
     aura.position.z = 0.08;
     portal.add(aura);
-    const disk = new T.Mesh(
-      new T.CircleGeometry(1.48, 96),
-      new T.MeshBasicMaterial({ map: rt.texture, side: T.DoubleSide }),
-    );
+    const surfaceMaterial = new T.ShaderMaterial({
+      uniforms: {
+        view: { value: rt.texture },
+        resolution: { value: new T.Vector2(1, 1) },
+      },
+      vertexShader: `void main(){gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+      fragmentShader: `uniform sampler2D view;uniform vec2 resolution;void main(){gl_FragColor=texture2D(view,gl_FragCoord.xy/resolution);
+      #include <colorspace_fragment>
+      }`,
+      side: T.FrontSide,
+    });
+    const disk = new T.Mesh(new T.CircleGeometry(1.48, 96), surfaceMaterial);
     portal.add(disk);
     const rings: T.Mesh[] = [];
     for (let i = 0; i < 5; i++) {
@@ -215,6 +226,13 @@ export default function PortalCanvas({
       renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      const size = targetSize(
+        w,
+        h,
+        quality === "Low" ? 512 : quality === "High" ? 1536 : 1024,
+      );
+      rt.setSize(size.width, size.height);
+      renderer.getDrawingBufferSize(surfaceMaterial.uniforms.resolution.value);
     };
     const observer = new ResizeObserver(resize);
     observer.observe(element);
@@ -245,6 +263,9 @@ export default function PortalCanvas({
       scale = T.MathUtils.lerp(scale, s.open ? s.scale : 0, 0.075);
       portal.scale.setScalar(scale);
       portal.position.set(s.x, s.y, 0);
+      portal.rotation.y = s.yaw ?? 0;
+      camera.position.x = s.viewX ?? 0;
+      camera.lookAt(0, 0, 0);
       rings.forEach((ring, i) => {
         ring.rotation.z = t * (i % 2 ? -0.12 : 0.08) * (i + 1);
         (ring.material as T.MeshBasicMaterial).color.set(
@@ -266,10 +287,18 @@ export default function PortalCanvas({
       (grass.material as T.MeshStandardMaterial).color.set(palette[2]);
       (particles.material as T.PointsMaterial).opacity =
         0.4 + s.intensity * 0.3;
-      dc.position.x = s.x * 0.22;
-      dc.lookAt(0, 0.2, 0);
+      const linked = linkPortalCamera(camera, portal, exit, dc);
+      disk.visible = linked.front && scale > 0.001;
+      renderer.domElement.dataset.portalFront = String(linked.front);
+      renderer.domElement.dataset.viewX = String(s.viewX ?? 0);
+      renderer.domElement.dataset.yaw = String(s.yaw ?? 0);
+      renderer.domElement.dataset.geometries = String(
+        renderer.info.memory.geometries,
+      );
       renderer.setRenderTarget(rt);
-      renderer.render(destination, dc);
+      renderer.clippingPlanes = [linked.plane];
+      if (disk.visible) renderer.render(destination, dc);
+      renderer.clippingPlanes = [];
       renderer.setRenderTarget(null);
       renderer.render(scene, camera);
       frames++;

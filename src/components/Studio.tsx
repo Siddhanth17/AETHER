@@ -624,6 +624,26 @@ export default function Studio() {
                 )}
               </div>
               <div className="inspector-section">
+                <label htmlFor="view-x">Viewer parallax</label>
+                <input
+                  id="view-x"
+                  type="range"
+                  min="-3"
+                  max="3"
+                  step=".05"
+                  value={portal.viewX ?? 0}
+                  onChange={(e) => patch({ viewX: +e.target.value })}
+                />
+                <label htmlFor="portal-yaw">Portal angle</label>
+                <input
+                  id="portal-yaw"
+                  type="range"
+                  min="-3.14"
+                  max="3.14"
+                  step=".05"
+                  value={portal.yaw ?? 0}
+                  onChange={(e) => patch({ yaw: +e.target.value })}
+                />
                 <label htmlFor="scale">
                   Portal scale <span>{portal.scale.toFixed(2)}×</span>
                 </label>

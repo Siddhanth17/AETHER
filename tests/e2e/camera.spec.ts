@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { installSyntheticCamera } from "../fixtures/camera";
 test("camera selection, mirroring, disconnection and cleanup are recoverable", async ({
   page,
   context,
@@ -125,24 +126,8 @@ test("unavailable camera does not leave an active stream or disabled control", a
 });
 test("playback startup failure releases the granted camera stream", async ({
   page,
-  context,
 }) => {
-  await context.grantPermissions(["camera"]);
-  await page.addInitScript(() => {
-    const original = navigator.mediaDevices.getUserMedia.bind(
-      navigator.mediaDevices,
-    );
-    navigator.mediaDevices.getUserMedia = async (constraints) => {
-      const stream = await original(constraints);
-      (window as unknown as { grantedStream: MediaStream }).grantedStream =
-        stream;
-      return stream;
-    };
-    HTMLMediaElement.prototype.play = () =>
-      Promise.reject(
-        new DOMException("Playback unavailable", "NotSupportedError"),
-      );
-  });
+  await installSyntheticCamera(page, true);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute(
     "data-aether-ready",

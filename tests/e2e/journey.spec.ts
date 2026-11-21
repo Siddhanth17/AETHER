@@ -1,10 +1,12 @@
 import { test, expect } from "@playwright/test";
 import { gestureFixture } from "../fixtures/landmarks";
+import { installSyntheticCamera } from "../fixtures/camera";
 test("synthetic camera journey calibrates, opens, scales, changes world and exports", async ({
   page,
   context,
 }) => {
   test.setTimeout(90000);
+  await installSyntheticCamera(page);
   await context.grantPermissions(["camera"]);
   let stage = "empty",
     index = 0;

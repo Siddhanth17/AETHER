@@ -22,16 +22,16 @@ import {
   X,
 } from "lucide-react";
 import PortalCanvas from "./PortalCanvas";
+import {
+  CompositeRecorder,
+  type CaptureStats,
+} from "@/recording/CompositeRecorder";
 import Intro from "./Intro";
 import Modal from "./Modal";
 import PerformancePanel from "./PerformancePanel";
 import { AdaptiveQuality, type RenderMetrics } from "@/renderer/performance";
 import { PortalAudio } from "@/audio/PortalAudio";
-import {
-  screenToPortalPlane,
-  containRect,
-  coverRect,
-} from "@/renderer/compositing";
+import { screenToPortalPlane } from "@/renderer/compositing";
 import {
   clamp,
   initialPortal,
@@ -82,6 +82,8 @@ export default function Studio() {
     [masterVolume, setMasterVolume] = useState(0.5),
     [effectsVolume, setEffectsVolume] = useState(0.7),
     [recording, setRecording] = useState(false),
+    [recordAudio, setRecordAudio] = useState(false),
+    [captureStats, setCaptureStats] = useState<CaptureStats | null>(null),
     [recordSize, setRecordSize] = useState(1080),
     [draw, setDraw] = useState(false),
     [diagnostics, setDiagnostics] = useState<TrackingSample>({
@@ -93,9 +95,7 @@ export default function Studio() {
       circle: false,
     });
   const canvasHost = useRef<HTMLDivElement>(null),
-    recorder = useRef<MediaRecorder | null>(null),
-    recordStream = useRef<MediaStream | null>(null),
-    recordFrame = useRef(0),
+    recorder = useRef<CompositeRecorder | null>(null),
     audio = useRef<PortalAudio | null>(null),
     drag = useRef(false),
     points = useRef<{ x: number; y: number }[]>([]),
@@ -258,9 +258,8 @@ export default function Studio() {
   }, [studio, calibrating, settings]);
   useEffect(
     () => () => {
-      if (recorder.current?.state === "recording") recorder.current.stop();
-      cancelAnimationFrame(recordFrame.current);
-      recordStream.current?.getTracks().forEach((t) => t.stop());
+      recorder.current?.dispose();
+
       void audio.current?.close();
     },
     [],
@@ -286,100 +285,25 @@ export default function Studio() {
       return;
     }
     try {
-      if (!window.MediaRecorder)
-        throw new Error("Recording is unsupported in this browser.");
-      const source = canvasHost.current?.querySelector("canvas");
-      if (!source) throw new Error("The renderer is not ready.");
-      const output = document.createElement("canvas");
-      output.width = Math.round((recordSize * 16) / 9);
-      output.height = recordSize;
-      const ctx = output.getContext("2d")!;
-      const composite = () => {
-        ctx.fillStyle = "#090a10";
-        ctx.fillRect(0, 0, output.width, output.height);
-        const viewport = containRect(
-          source.width,
-          source.height,
-          output.width,
-          output.height,
-        );
-        const v = videoRef.current;
-        if (camera.active && v && v.readyState >= 2) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(viewport.x, viewport.y, viewport.width, viewport.height);
-          ctx.clip();
-          ctx.translate(viewport.x, viewport.y);
-          ctx.globalAlpha = 0.75;
-          ctx.filter = v.style.filter || "none";
-          if (mirror) {
-            ctx.translate(viewport.width, 0);
-            ctx.scale(-1, 1);
-          }
-          const rect = coverRect(
-            v.videoWidth,
-            v.videoHeight,
-            viewport.width,
-            viewport.height,
-          );
-          ctx.drawImage(v, rect.x, rect.y, rect.width, rect.height);
-          ctx.restore();
-        }
-        ctx.drawImage(
-          source,
-          viewport.x,
-          viewport.y,
-          viewport.width,
-          viewport.height,
-        );
-        recordFrame.current = requestAnimationFrame(composite);
-      };
-      composite();
-      const stream = output.captureStream(30);
-      recordStream.current = stream;
-      const mime = [
-        "video/webm;codecs=vp8",
-        "video/webm;codecs=vp9",
-        "video/webm",
-      ].find((m) => MediaRecorder.isTypeSupported(m));
-      if (!mime) throw new Error("No supported WebM encoder.");
-      const mr = new MediaRecorder(stream, {
-        mimeType: mime,
-        videoBitsPerSecond: 6_000_000,
-      });
-      recorder.current = mr;
-      const chunks: Blob[] = [];
-      mr.ondataavailable = (e) => {
-        if (e.data.size) chunks.push(e.data);
-      };
-      mr.onstop = () => {
-        cancelAnimationFrame(recordFrame.current);
-        stream.getTracks().forEach((t) => t.stop());
-        setRecording(false);
-        if (chunks.length) {
-          const url = URL.createObjectURL(new Blob(chunks, { type: mime }));
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `aether-${Date.now()}.webm`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 10000);
-          setNotice("Recording exported · saved locally as WebM");
-        } else
-          setNotice(
-            "The encoder produced no video. Try 720p and record for longer.",
-          );
-      };
-      mr.onerror = () => {
-        setNotice("The video encoder failed.");
-        mr.stop();
-      };
-      mr.start(250);
-      setRecording(true);
+      if (recordAudio && !audio.current)
+        throw new Error("Enable portal audio before recording with sound.");
+      recorder.current?.dispose();
+      const session = new CompositeRecorder(
+        () => canvasHost.current?.querySelector("canvas") ?? null,
+        () => videoRef.current,
+        (stats) => {
+          setCaptureStats(stats);
+          setRecording(stats.active);
+        },
+        setNotice,
+      );
+      recorder.current = session;
+      session.start(
+        recordSize,
+        recordAudio ? audio.current?.capture.stream : undefined,
+      );
     } catch (e) {
-      cancelAnimationFrame(recordFrame.current);
-      recordStream.current?.getTracks().forEach((t) => t.stop());
+      setRecording(false);
       setNotice(e instanceof Error ? e.message : "Recording failed.");
     }
   };
@@ -916,7 +840,12 @@ export default function Studio() {
                 <span />
                 {recording ? "Stop & export" : "Record scene"}
               </button>
-              <span>WebM · {recordSize}p</span>
+              <span>
+                WebM · {recordSize}p{" "}
+                {recording && captureStats
+                  ? `· ${Math.floor(captureStats.seconds / 60)}:${String(Math.floor(captureStats.seconds % 60)).padStart(2, "0")}`
+                  : ""}
+              </span>
             </div>
             <div>
               <button
@@ -1047,7 +976,6 @@ export default function Studio() {
               />{" "}
               Mirror camera
             </label>
-            <label htmlFor="record-size">Recording resolution</label>
             <label htmlFor="master-volume">Master volume</label>
             <input
               id="master-volume"
@@ -1068,6 +996,16 @@ export default function Studio() {
               value={effectsVolume}
               onChange={(e) => setEffectsVolume(+e.target.value)}
             />
+            <label htmlFor="record-size">Recording resolution</label>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={recordAudio}
+                disabled={recording}
+                onChange={(e) => setRecordAudio(e.target.checked)}
+              />{" "}
+              Include synthesized portal audio (no microphone)
+            </label>
             <select
               id="record-size"
               value={recordSize}
@@ -1077,6 +1015,13 @@ export default function Studio() {
               <option value={720}>720p</option>
               <option value={1080}>1080p</option>
             </select>
+            {captureStats && (
+              <p role="note">
+                Capture: {captureStats.frames} composite frames ·{" "}
+                {captureStats.lateSlots} late capture slots. These are
+                scheduling diagnostics, not measured encoder drops.
+              </p>
+            )}
             <p>
               Camera changes apply when you restart the camera. Video and
               recordings stay local. Hand tracking downloads the MediaPipe

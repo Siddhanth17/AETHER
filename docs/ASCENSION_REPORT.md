@@ -53,3 +53,9 @@ Added a 2.3-second point/ring/wordmark intro, explicit Skip intro, reduced-motio
 Nine of ten initial UI/audio/portal cases passed; reverse Tab exposed browser-chrome focus escape. An explicit wrap corrected it; both keyboard/reduced-motion tests then passed (10.9 s). Existing eight audio/portal/layout tests also passed in the initial run. Types/lint/build pass. UI and recording are staged separately so history preserves the two changes.
 
 A later combined run exposed an intermittent initial-focus race. Modal startup now explicitly focuses its first control and handles focus on the dialog root; the test awaits initial focus. Three repeated keyboard/reduced-motion runs pass (6/6, 23.3 s).
+
+## Phase 9 — HD composite recording
+
+Extracted CompositeRecorder with capability/codec checks, exact 720p/1080p dimensions, current-canvas lookup, aspect-correct camera/graphics composition, bounded 30 Hz capture, timer, composite-frame/late-slot counters, cloned opt-in synthesized audio tracks, initialization/runtime errors, three-minute memory limit and disposal without an unwanted export. Microphone capture is not requested. Late slots are capture scheduling diagnostics, not encoder drop counts.
+
+Four recording cases passed: actual 720p and 1080p exports, unsupported formats, injected runtime encoder failure with stopped-state recovery. HTML video playback decoded 1280×720 and 1920×1080, and both decoded frames were visually inspected. Initial inspected files were 889,484 and 1,453,846 bytes, respectively; the latter contained an Opus track and the silent 720p did not. Later tests explicitly assert requested audio presence. Metadata is in playback-720.json and playback-1080.json; videos stay ignored. 26 unit tests, types/lint and production export pass. Physical-webcam HD recording and listening evaluation remain pending.

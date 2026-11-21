@@ -22,6 +22,8 @@ import {
   X,
 } from "lucide-react";
 import PortalCanvas from "./PortalCanvas";
+import Intro from "./Intro";
+import Modal from "./Modal";
 import PerformancePanel from "./PerformancePanel";
 import { AdaptiveQuality, type RenderMetrics } from "@/renderer/performance";
 import { PortalAudio } from "@/audio/PortalAudio";
@@ -54,6 +56,7 @@ export default function Studio() {
     };
   }, []);
   const [studio, setStudio] = useState(false),
+    [intro, setIntro] = useState(true),
     [calibration, setCalibration] = useState<Calibration | null>(null),
     [calibrating, setCalibrating] = useState(false),
     [rawSample, setRawSample] = useState<TrackingSample | null>(null),
@@ -116,6 +119,7 @@ export default function Studio() {
     (value: Partial<PortalState>) => setPortal((p) => ({ ...p, ...value })),
     [],
   );
+  const dismissIntro = useCallback(() => setIntro(false), []);
   const anchor = useCallback(
     (point: { x: number; y: number }) => {
       const host = canvasHost.current;
@@ -959,13 +963,8 @@ export default function Studio() {
         </div>
       )}
       {settings && (
-        <div className="modal-backdrop">
-          <section
-            className="settings panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-title"
-          >
+        <Modal onClose={() => setSettings(false)}>
+          <section className="settings panel" aria-labelledby="settings-title">
             <div className="panel-heading">
               <h2 id="settings-title">Studio settings</h2>
               <button
@@ -1087,7 +1086,7 @@ export default function Studio() {
               Apply settings
             </button>
           </section>
-        </div>
+        </Modal>
       )}
       {calibrating && rawSample && (
         <CalibrationPanel
@@ -1105,6 +1104,7 @@ export default function Studio() {
           }}
         />
       )}
+      {!studio && intro && <Intro onComplete={dismissIntro} />}
     </main>
   );
 }

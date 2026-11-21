@@ -124,6 +124,7 @@ for (const size of [
       "true",
     );
     await expect(page.locator("canvas")).toBeVisible();
+    await expect(page.locator("[data-intro]")).toHaveCount(0);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

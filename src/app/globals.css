@@ -12,6 +12,144 @@
   color: var(--ink);
   background: var(--bg);
 }
+.modal-dialog {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  max-width: calc(100vw - 24px);
+  max-height: 92svh;
+  overflow: visible;
+}
+.modal-dialog::backdrop {
+  background: #000b;
+  backdrop-filter: blur(5px);
+}
+.modal-dialog .settings {
+  max-height: 90svh;
+  overflow: auto;
+}
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: #08080d;
+  pointer-events: none;
+  animation: intro-fade 2.3s both;
+}
+.intro button {
+  position: absolute;
+  right: 32px;
+  bottom: 32px;
+  pointer-events: auto;
+  border: 1px solid #ffffff25;
+  padding: 0 20px;
+  font-size: 13px;
+}
+.intro-seed {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fce3b9;
+  box-shadow: 0 0 40px 12px #bda0ed80;
+  animation: intro-seed 1.3s both;
+}
+.intro-ring {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border: 1px solid #d9c5fb;
+  border-radius: 50%;
+  box-shadow:
+    0 0 35px #b59bdd50,
+    inset 0 0 30px #b59bdd30;
+  animation: intro-ring 1.5s both;
+}
+.intro-wordmark {
+  font-size: clamp(38px, 7vw, 100px);
+  letter-spacing: 0.28em;
+  font-weight: 400;
+  margin-left: 0.28em;
+  animation: intro-word 2.3s both;
+}
+.intro-wordmark small {
+  display: block;
+  font-size: 13px;
+  text-align: center;
+  letter-spacing: 0.08em;
+  margin: 24px 0 0 -0.28em;
+  color: #c6b5da;
+}
+.studio .tool,
+.studio .panel-heading,
+.inspector > label,
+.inspector-section > label {
+  font-size: 12px;
+}
+.studio .tool-guide p {
+  font-size: 12px;
+}
+.studio .tool-guide span {
+  font-size: 11px;
+}
+@keyframes intro-fade {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes intro-seed {
+  0% {
+    scale: 0;
+    opacity: 0;
+  }
+  20% {
+    scale: 1;
+    opacity: 1;
+  }
+  70%,
+  100% {
+    scale: 4;
+    opacity: 0;
+  }
+}
+@keyframes intro-ring {
+  0%,
+  10% {
+    scale: 0;
+    opacity: 0;
+  }
+  45% {
+    scale: 1;
+    opacity: 1;
+    rotate: 0deg;
+  }
+  100% {
+    scale: 1.7;
+    opacity: 0;
+    rotate: 80deg;
+  }
+}
+@keyframes intro-word {
+  0%,
+  45% {
+    opacity: 0;
+    filter: blur(12px);
+    translate: 0 12px;
+  }
+  70%,
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    translate: 0 0;
+  }
+}
 .performance-panel {
   margin-top: 20px;
   border-top: 1px solid var(--line);

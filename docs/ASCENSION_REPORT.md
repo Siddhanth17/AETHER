@@ -45,3 +45,9 @@ Four explicit GPU budgets, optional adaptation capped at the selected preset, fi
 Dashboard reports measured render intervals/trend, actual internal dimensions, particles, all-pass draw calls, triangles, textures/geometries, render-target dimensions, WebGL2, inference and recording state. No GPU-time, VRAM or CPU-utilization estimates are presented as measurements.
 
 24 unit tests pass. Browser preset/instrumentation test passes (18.2 s). In this short 1440×900 Chromium run (canvas 1440×764), measured moving-window frame means were 27.82 ms initial open, 16.61 ms enlarged portal, 18.44 ms Cinematic; 75 all-pass calls each. Startup is included in the first sample. Full raw intervals/methodology are in render-metrics.json. These are not a 1080p target-laptop benchmark or sustained 60 FPS qualification.
+
+## Phase 8 — cinematic UI
+
+Added a 2.3-second point/ring/wordmark intro, explicit Skip intro, reduced-motion bypass, native modal semantics with explicit focus wrapping and Escape/focus return, and more readable panel text. Responsive landing/studio screenshots still render at all four sizes.
+
+Nine of ten initial UI/audio/portal cases passed; reverse Tab exposed browser-chrome focus escape. An explicit wrap corrected it; both keyboard/reduced-motion tests then passed (10.9 s). Existing eight audio/portal/layout tests also passed in the initial run. Types/lint/build pass. UI and recording are staged separately so history preserves the two changes.

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import * as T from "three";
 import type { PortalState, Quality } from "@/core/portal";
 import { linkPortalCamera, targetSize } from "@/renderer/portalCamera";
+import { PortalLifecycle } from "@/renderer/lifecycle";
 
 interface Props {
   state: PortalState;
@@ -184,9 +185,23 @@ export default function PortalCanvas({
     portal.add(glyphs);
     for (let i = 0; i < 36; i++) {
       const a = (i / 36) * Math.PI * 2;
-      const glyph = new T.Mesh(
-        new T.OctahedronGeometry(i % 3 === 0 ? 0.032 : 0.016),
-        new T.MeshBasicMaterial({ color: "#e5d4ad" }),
+      const rune = new T.BufferGeometry().setFromPoints([
+        new T.Vector3(-0.035, -0.055, 0),
+        new T.Vector3(0, 0.055, 0),
+        new T.Vector3(0, 0.055, 0),
+        new T.Vector3(0.035, -0.055, 0),
+        new T.Vector3(-0.03, 0, 0),
+        new T.Vector3(0.03, 0, 0),
+        new T.Vector3(0, -0.055, 0),
+        new T.Vector3(0, 0.03, 0),
+      ]);
+      const glyph = new T.LineSegments(
+        rune,
+        new T.LineBasicMaterial({
+          color: "#e5d4ad",
+          transparent: true,
+          opacity: 0.8,
+        }),
       );
       glyph.position.set(Math.cos(a) * 1.76, Math.sin(a) * 1.76, 0);
       glyph.rotation.z = a;
@@ -208,18 +223,27 @@ export default function PortalCanvas({
     }
     const pg = new T.BufferGeometry();
     pg.setAttribute("position", new T.BufferAttribute(positions, 3));
-    const particles = new T.Points(
-      pg,
-      new T.PointsMaterial({
-        color: "#d1baff",
-        size: 0.018,
-        transparent: true,
-        opacity: 0.75,
-        blending: T.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
+    const particleMaterial = new T.ShaderMaterial({
+      transparent: true,
+      blending: T.AdditiveBlending,
+      depthWrite: false,
+      uniforms: {
+        time: { value: 0 },
+        formation: { value: 1 },
+        strength: { value: 1 },
+        tint: { value: new T.Color("#d1baff") },
+      },
+      vertexShader: `uniform float time;uniform float formation;varying float alpha;void main(){float angle=time*.25+length(position)*.4;mat2 rotation=mat2(cos(angle),-sin(angle),sin(angle),cos(angle));vec3 p=position;p.xy=rotation*p.xy*(.2+.8*formation);p.z+=sin(time+position.x*3.)*.09;vec4 view=modelViewMatrix*vec4(p,1.);gl_Position=projectionMatrix*view;gl_PointSize=clamp(14./-view.z,1.,4.);alpha=.3+.7*fract(position.x*13.7+position.y*8.3);}`,
+      fragmentShader: `uniform vec3 tint;uniform float strength;varying float alpha;void main(){float r=length(gl_PointCoord-.5)*2.;if(r>1.)discard;gl_FragColor=vec4(tint,(1.-r)*alpha*strength);}`,
+    });
+    const particles = new T.Points(pg, particleMaterial);
     portal.add(particles);
+    const spark = new T.Mesh(
+      new T.SphereGeometry(0.035, 12, 8),
+      new T.MeshBasicMaterial({ color: "#fce7cb" }),
+    );
+    scene.add(spark);
+    const lifecycle = new PortalLifecycle();
     const resize = () => {
       const w = element.clientWidth,
         h = element.clientHeight;
@@ -258,11 +282,21 @@ export default function PortalCanvas({
       previousFrame = now;
       const s = current.current;
       const t = reducedMotion ? 0 : now * 0.001;
+      const life = lifecycle.update(s.open, now, reducedMotion);
+      renderer.domElement.dataset.phase = life.phase;
       auraMaterial.uniforms.time.value = t;
       auraMaterial.uniforms.tint.value.set(s.color);
-      scale = T.MathUtils.lerp(scale, s.open ? s.scale : 0, 0.075);
+      scale = Math.max(0.001, s.scale * life.amount);
       portal.scale.setScalar(scale);
+      portal.visible = life.phase !== "closed";
       portal.position.set(s.x, s.y, 0);
+      spark.position.copy(portal.position);
+      spark.visible = life.phase === "detection" || life.phase === "collapse";
+      spark.scale.setScalar(0.4 + Math.sin(life.amount * Math.PI) * 4);
+      disk.scale.setScalar(Math.max(0.001, life.aperture));
+      particleMaterial.uniforms.time.value = t;
+      particleMaterial.uniforms.formation.value = life.amount;
+      particleMaterial.uniforms.strength.value = s.intensity * life.energy;
       portal.rotation.y = s.yaw ?? 0;
       camera.position.x = s.viewX ?? 0;
       camera.lookAt(0, 0, 0);
@@ -285,8 +319,6 @@ export default function PortalCanvas({
       destination.background = new T.Color(palette[0]);
       (ground.material as T.MeshStandardMaterial).color.set(palette[1]);
       (grass.material as T.MeshStandardMaterial).color.set(palette[2]);
-      (particles.material as T.PointsMaterial).opacity =
-        0.4 + s.intensity * 0.3;
       const linked = linkPortalCamera(camera, portal, exit, dc);
       disk.visible = linked.front && scale > 0.001;
       renderer.domElement.dataset.portalFront = String(linked.front);
@@ -318,7 +350,11 @@ export default function PortalCanvas({
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       [scene, destination].forEach((s) =>
         s.traverse((o) => {
-          if (o instanceof T.Mesh || o instanceof T.Points) {
+          if (
+            o instanceof T.Mesh ||
+            o instanceof T.Points ||
+            o instanceof T.Line
+          ) {
             o.geometry.dispose();
             const materials = Array.isArray(o.material)
               ? o.material

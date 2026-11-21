@@ -11,6 +11,7 @@ test("portal parallax, edge-on/back rejection and rebuild stay bounded", async (
   );
   await page.getByRole("button", { name: "Enter AETHER", exact: true }).click();
   const canvas = page.locator("canvas");
+  await expect(canvas).toHaveAttribute('data-phase','stable');
   await expect(canvas).toHaveAttribute("data-portal-front", "true");
   await page.locator("#view-x").fill("2");
   await expect(canvas).toHaveAttribute("data-view-x", "2");
@@ -35,4 +36,3 @@ test("portal parallax, edge-on/back rejection and rebuild stay bounded", async (
   );
   expect(errors).toEqual([]);
 });
-

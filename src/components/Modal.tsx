@@ -12,7 +12,11 @@ export default function Modal({
     const dialog = ref.current!;
     const previous = document.activeElement as HTMLElement | null;
     dialog.showModal();
-    dialog.querySelector<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)')?.focus();
+    dialog
+      .querySelector<HTMLElement>(
+        "button:not(:disabled),input:not(:disabled),select:not(:disabled)",
+      )
+      ?.focus();
     return () => {
       dialog.close();
       previous?.focus();
@@ -34,7 +38,8 @@ export default function Modal({
           last = nodes.at(-1);
         if (
           e.shiftKey &&
-          (document.activeElement === first || document.activeElement===ref.current ||
+          (document.activeElement === first ||
+            document.activeElement === ref.current ||
             !ref.current!.contains(document.activeElement))
         ) {
           e.preventDefault();

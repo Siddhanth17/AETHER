@@ -690,7 +690,6 @@ export default function Studio() {
                 )}
               </div>
               <div className="inspector-section">
-                <label htmlFor="view-x">Viewer parallax</label>
                 <label htmlFor="lighting">
                   Camera lighting match (artistic)
                 </label>
@@ -708,6 +707,7 @@ export default function Studio() {
                   <option>Moonlight</option>
                   <option>Warm</option>
                 </select>
+                <label htmlFor="view-x">Viewer parallax</label>
                 <input
                   id="view-x"
                   type="range"
@@ -996,7 +996,6 @@ export default function Studio() {
               value={effectsVolume}
               onChange={(e) => setEffectsVolume(+e.target.value)}
             />
-            <label htmlFor="record-size">Recording resolution</label>
             <label className="check">
               <input
                 type="checkbox"
@@ -1006,6 +1005,7 @@ export default function Studio() {
               />{" "}
               Include synthesized portal audio (no microphone)
             </label>
+            <label htmlFor="record-size">Recording resolution</label>
             <select
               id="record-size"
               value={recordSize}

@@ -27,6 +27,7 @@ export function useCamera(
   const stream = useRef<MediaStream | null>(null);
   const tracker = useRef<HandLandmarker | null>(null);
   const worker = useRef<WorkerTracker | null>(null);
+  const workerInit = useRef<AbortController | null>(null);
   const profile = useRef(calibration);
   useEffect(() => {
     profile.current = calibration;
@@ -43,6 +44,8 @@ export function useCamera(
     [loading, setLoading] = useState(false);
   const stop = useCallback(() => {
     generation.current++;
+    workerInit.current?.abort();
+    workerInit.current = null;
     cancelAnimationFrame(frame.current);
     stream.current?.getTracks().forEach((t) => t.stop());
     stream.current = null;
@@ -57,6 +60,7 @@ export function useCamera(
   useEffect(
     () => () => {
       generation.current++;
+      workerInit.current?.abort();
       cancelAnimationFrame(frame.current);
       stream.current?.getTracks().forEach((t) => t.stop());
       tracker.current?.close();
@@ -99,6 +103,7 @@ export function useCamera(
             (d) => d.kind === "videoinput",
           ),
         );
+        if (ticket !== generation.current) return;
         media.getVideoTracks()[0].addEventListener("ended", () => {
           stop();
           setError(
@@ -107,9 +112,11 @@ export function useCamera(
         });
         let workerModel: WorkerTracker | null = null;
         let workerError = "";
+        const init = new AbortController();
+        workerInit.current = init;
         if (preferWorker)
           try {
-            workerModel = await WorkerTracker.create();
+            workerModel = await WorkerTracker.create(init.signal);
           } catch (e) {
             workerError = e instanceof Error ? e.message : "Worker unavailable";
           }
@@ -209,7 +216,7 @@ export function useCamera(
         frame.current = requestAnimationFrame(tick);
       } catch (e) {
         if (ticket !== generation.current) return;
-        setLoading(false);
+        stop();
         setError(
           e instanceof Error
             ? e.message

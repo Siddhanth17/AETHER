@@ -28,7 +28,7 @@ test("real MediaPipe runtime processes a synthetic camera stream in a worker", a
       .filter({ hasText: /Worker|Main thread fallback/ })
       .first(),
   ).toBeVisible({ timeout: 65000 });
-  console.log(await page.locator("dl").innerText());
+  console.log(await page.locator("dl[data-backend]").innerText());
   await expect(page.locator("dd").filter({ hasText: /^Worker$/ })).toBeVisible({
     timeout: 1000,
   });
@@ -40,16 +40,18 @@ test("real MediaPipe runtime processes a synthetic camera stream in a worker", a
     let previous = "";
     for (let i = 0; i < 12; i++) {
       await expect
-        .poll(() => page.locator("dl").getAttribute("data-sample-at"))
+        .poll(() =>
+          page.locator("dl[data-backend]").getAttribute("data-sample-at"),
+        )
         .not.toBe(previous);
-      previous = (await page.locator("dl").getAttribute("data-sample-at"))!;
+      previous = (await page
+        .locator("dl[data-backend]")
+        .getAttribute("data-sample-at"))!;
       values.push(
-        await page
-          .locator("dl")
-          .evaluate((el) => ({
-            inferenceMs: Number(el.dataset.inferenceMs),
-            blockingMs: Number(el.dataset.blockingMs),
-          })),
+        await page.locator("dl[data-backend]").evaluate((el) => ({
+          inferenceMs: Number(el.dataset.inferenceMs),
+          blockingMs: Number(el.dataset.blockingMs),
+        })),
       );
     }
     return values;
@@ -66,7 +68,7 @@ test("real MediaPipe runtime processes a synthetic camera stream in a worker", a
   await page
     .getByRole("button", { name: "Enable camera", exact: true })
     .click();
-  await expect(page.locator("dl")).toHaveAttribute(
+  await expect(page.locator("dl[data-backend]")).toHaveAttribute(
     "data-backend",
     "Main thread fallback",
     { timeout: 30000 },

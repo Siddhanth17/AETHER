@@ -29,7 +29,7 @@ export class WorkerTracker {
       this.pending = null;
     };
   }
-  static create(): Promise<WorkerTracker> {
+  static create(signal?: AbortSignal): Promise<WorkerTracker> {
     return new Promise((resolve, reject) => {
       if (
         typeof Worker === "undefined" ||
@@ -40,12 +40,20 @@ export class WorkerTracker {
         return;
       }
       const worker = new Worker("/tracking-worker.js");
+      const abort = () => {
+        clearTimeout(timer);
+        worker.terminate();
+        signal?.removeEventListener("abort", abort);
+        reject(new Error("Worker initialization cancelled"));
+      };
       const timer = setTimeout(() => {
         worker.terminate();
+        signal?.removeEventListener("abort", abort);
         reject(new Error("Worker initialization timed out"));
       }, 45000);
       worker.onmessage = ({ data }) => {
         clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
         if (data.type === "ready") resolve(new WorkerTracker(worker));
         else {
           worker.terminate();
@@ -54,9 +62,15 @@ export class WorkerTracker {
       };
       worker.onerror = () => {
         clearTimeout(timer);
+        signal?.removeEventListener("abort", abort);
         worker.terminate();
         reject(new Error("Worker is incompatible with this runtime"));
       };
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+      signal?.addEventListener("abort", abort, { once: true });
       worker.postMessage({ type: "init" });
     });
   }

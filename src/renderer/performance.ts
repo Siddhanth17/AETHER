@@ -1,5 +1,8 @@
 import type { Quality } from "../core/portal";
-export function nextFrameDeadline(now:number,hz=60){const interval=1000/hz;return (Math.floor(now/interval)+1)*interval;}
+export function nextFrameDeadline(now: number, hz = 60) {
+  const interval = 1000 / hz;
+  return (Math.floor(now / interval) + 1) * interval;
+}
 export const qualities: Quality[] = ["Low", "Balanced", "High", "Cinematic"];
 export const budgets: Record<
   Quality,

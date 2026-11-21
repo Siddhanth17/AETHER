@@ -4,7 +4,11 @@ import * as T from "three";
 import type { PortalState, Quality } from "@/core/portal";
 import { linkPortalCamera, targetSize } from "@/renderer/portalCamera";
 import { PortalLifecycle } from "@/renderer/lifecycle";
-import { budgets,nextFrameDeadline, type RenderMetrics } from "@/renderer/performance";
+import {
+  budgets,
+  nextFrameDeadline,
+  type RenderMetrics,
+} from "@/renderer/performance";
 
 interface Props {
   state: PortalState;
@@ -262,6 +266,7 @@ export default function PortalCanvas({
       scale = 1;
     let lost = false;
     let previousFrame = 0;
+    let targetReleased = false;
     let lastRendered = performance.now();
     const durations: number[] = [];
     let userScale = 1;
@@ -286,7 +291,7 @@ export default function PortalCanvas({
       if (lost || now < previousFrame) return;
       const elapsed = now - lastRendered;
       lastRendered = now;
-      if (elapsed > 0 && elapsed < 250) {
+      if (elapsed > 0) {
         durations.push(elapsed);
         if (durations.length > 120) durations.shift();
       }
@@ -341,41 +346,49 @@ export default function PortalCanvas({
       (ground.material as T.MeshStandardMaterial).color.set(palette[1]);
       (grass.material as T.MeshStandardMaterial).color.set(palette[2]);
       const linked = linkPortalCamera(camera, portal, exit, dc);
-      disk.visible = linked.front && scale > 0.001;
+      disk.visible = linked.front && scale > 0.001 && life.aperture > 0.001;
       renderer.domElement.dataset.portalFront = String(linked.front);
       renderer.domElement.dataset.viewX = String(s.viewX ?? 0);
       renderer.domElement.dataset.yaw = String(s.yaw ?? 0);
       renderer.domElement.dataset.geometries = String(
         renderer.info.memory.geometries,
       );
-      renderer.setRenderTarget(rt);
       renderer.info.reset();
-      renderer.clippingPlanes = [linked.plane];
-      if (disk.visible) renderer.render(destination, dc);
+      if (disk.visible) {
+        targetReleased = false;
+        renderer.setRenderTarget(rt);
+        renderer.clippingPlanes = [linked.plane];
+        renderer.render(destination, dc);
+      } else if (life.phase === "closed" && !targetReleased) {
+        rt.dispose();
+        targetReleased = true;
+      }
       renderer.clippingPlanes = [];
       renderer.setRenderTarget(null);
       renderer.render(scene, camera);
       frames++;
       if (now - last > 1000) {
+        const measured: RenderMetrics = {
+          frameMs:
+            durations.reduce((a, b) => a + b, 0) /
+            Math.max(1, durations.length),
+          trend: durations.slice(-30),
+          width: renderer.domElement.width,
+          height: renderer.domElement.height,
+          particles: portal.visible ? count : 0,
+          calls: renderer.info.render.calls,
+          triangles: renderer.info.render.triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures,
+          targetWidth: rt.width,
+          targetHeight: rt.height,
+          backend: "WebGL2",
+        };
+        renderer.domElement.dataset.metrics = JSON.stringify(measured);
         onMetrics(
           Math.round((frames * 1000) / (now - last)),
           renderer.info.render.calls,
-          {
-            frameMs:
-              durations.reduce((a, b) => a + b, 0) /
-              Math.max(1, durations.length),
-            trend: durations.slice(-30),
-            width: renderer.domElement.width,
-            height: renderer.domElement.height,
-            particles: portal.visible ? count : 0,
-            calls: renderer.info.render.calls,
-            triangles: renderer.info.render.triangles,
-            geometries: renderer.info.memory.geometries,
-            textures: renderer.info.memory.textures,
-            targetWidth: rt.width,
-            targetHeight: rt.height,
-            backend: "WebGL2",
-          },
+          measured,
         );
         frames = 0;
         last = now;
@@ -403,7 +416,9 @@ export default function PortalCanvas({
       );
       rt.dispose();
       renderer.dispose();
-      renderer.forceContextLoss();
+      const gl = renderer.getContext();
+      if (!gl.isContextLost())
+        gl.getExtension("WEBGL_lose_context")?.loseContext();
       renderer.domElement.remove();
     };
   }, [quality, onMetrics, onError]);

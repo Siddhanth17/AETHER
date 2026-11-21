@@ -13,6 +13,8 @@ it("runs each formation stage and collapses without discontinuity", () => {
 it("respects reduced motion and handles interrupted opening", () => {
   const e = new PortalLifecycle();
   expect(e.update(true, 0, true).phase).toBe("stable");
+  expect(e.update(true, 0, true).aperture).toBe(1);
+  expect(e.update(true, 0, true).energy).toBe(1);
   expect(e.update(false, 100, true).phase).toBe("closed");
   e.update(true, 200);
   const before = e.update(true, 800).amount;

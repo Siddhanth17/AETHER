@@ -1,6 +1,18 @@
 import { it, expect } from "vitest";
-import { AdaptiveQuality, budgets,nextFrameDeadline } from "./performance";
-it('schedules at most one render per target interval on high-refresh displays',()=>{let next=0,count=0;for(let i=0;i<144;i++){const now=i*1000/144;if(now>=next){count++;next=nextFrameDeadline(now);}}expect(count).toBeGreaterThanOrEqual(59);expect(count).toBeLessThanOrEqual(61)});
+import { AdaptiveQuality, budgets, nextFrameDeadline } from "./performance";
+it("schedules at most one render per target interval on high-refresh displays", () => {
+  let next = 0,
+    count = 0;
+  for (let i = 0; i < 144; i++) {
+    const now = (i * 1000) / 144;
+    if (now >= next) {
+      count++;
+      next = nextFrameDeadline(now);
+    }
+  }
+  expect(count).toBeGreaterThanOrEqual(59);
+  expect(count).toBeLessThanOrEqual(61);
+});
 it("does not react to short spikes or compilation stalls", () => {
   const c = new AdaptiveQuality();
   for (let i = 0; i < 8; i++)

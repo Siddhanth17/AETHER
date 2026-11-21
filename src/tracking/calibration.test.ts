@@ -48,4 +48,34 @@ it("requires detected hands, deliberate dwell and explicit hand confirmation", (
   expect(c.step).toBe(3);
   expect(c.result("Right")).toBeNull();
 });
-it('completes all measured stages and returns a bounded serializable profile',()=>{const c=new CalibrationSession();let time=100;const s={gesture:'Open palm',point:{x:.5,y:.5},span:null as number|null,circle:false};const hold=(gesture:string)=>{c.update({...s,gesture},time);c.update({...s,gesture},time+700);time+=1000};hold('Move');c.confirmHand();hold('Open palm');hold('Pinch');hold('Fist');c.update({...s,circle:true},time);time+=1000;c.update({...s,point:{x:.2,y:.2}},time);c.update({...s,point:{x:.8,y:.8}},time+3100);time+=4000;c.update({...s,span:.5},time);c.update({...s,span:1.5},time+2100);const result=c.result('Left');expect(result).not.toBeNull();expect(validCalibration(JSON.parse(JSON.stringify(result)))).toBe(true);expect(result!.hand).toBe('Left')});
+it("completes all measured stages and returns a bounded serializable profile", () => {
+  const c = new CalibrationSession();
+  let time = 100;
+  const s = {
+    gesture: "Open palm",
+    point: { x: 0.5, y: 0.5 },
+    span: null as number | null,
+    circle: false,
+  };
+  const hold = (gesture: string) => {
+    c.update({ ...s, gesture }, time);
+    c.update({ ...s, gesture }, time + 700);
+    time += 1000;
+  };
+  hold("Move");
+  c.confirmHand();
+  hold("Open palm");
+  hold("Pinch");
+  hold("Fist");
+  c.update({ ...s, circle: true }, time);
+  time += 1000;
+  c.update({ ...s, point: { x: 0.2, y: 0.2 } }, time);
+  c.update({ ...s, point: { x: 0.8, y: 0.8 } }, time + 3100);
+  time += 4000;
+  c.update({ ...s, span: 0.5 }, time);
+  c.update({ ...s, span: 1.5 }, time + 2100);
+  const result = c.result("Left");
+  expect(result).not.toBeNull();
+  expect(validCalibration(JSON.parse(JSON.stringify(result)))).toBe(true);
+  expect(result!.hand).toBe("Left");
+});

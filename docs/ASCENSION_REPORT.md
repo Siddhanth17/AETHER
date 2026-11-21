@@ -25,3 +25,9 @@ Added guided detection, explicit hand preference, palm/pinch/fist holds, motion-
 Actual runtime smoke: first worker attempt fell back; a retry processed synthetic camera frames in the worker. The subsequent twelve-result-per-backend comparison passed in 20.1 seconds with real model inference. Measurements are in tracking-timing.json. Synthetic browser camera and pure landmark fixtures are not physical-camera validation. No main-thread dispatch measurement includes asynchronous bitmap creation or total CPU utilization.
 
 Types/lint pass; browser regression 7/7 (37.9 s) plus the explicit real-runtime smoke passes. Production build initially failed twice on generated `.next` directory EPERM; the same build succeeded with filesystem permission escalation. Manual lighting/occlusion/device procedure is in HARDWARE_ACCEPTANCE.md; physical validation and consented recorded-camera fixtures remain pending.
+
+## Phase 5 — positional audio
+
+Extracted original synthesized layered hum, charging/opening frequency sweep, collapse sweep, gesture confirmation and UI tones. Actual PannerNode position follows portal state with inverse-distance attenuation. Explicit opt-in, global mute, separate master/effects volume, source tracking and context shutdown on workspace exit. A MediaStreamAudioDestinationNode supports optional recording later.
+
+Two real Web Audio browser cases pass (14.0 s): no context before opt-in, running context after activation, reuse through mute, closed context on exit; unsupported AudioContext fallback. Types/lint/build pass. No recorded listening evaluation or audio loudness benchmark is claimed. Test-only Window casting was corrected after strict type checking flagged it.

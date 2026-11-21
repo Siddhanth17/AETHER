@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import PortalCanvas from "./PortalCanvas";
+import { PortalAudio } from "@/audio/PortalAudio";
 import {
   clamp,
   initialPortal,
@@ -64,6 +65,8 @@ export default function Studio() {
     [device, setDevice] = useState(""),
     [resolution, setResolution] = useState(1280),
     [sound, setSound] = useState(false),
+    [masterVolume, setMasterVolume] = useState(0.5),
+    [effectsVolume, setEffectsVolume] = useState(0.7),
     [recording, setRecording] = useState(false),
     [recordSize, setRecordSize] = useState(1080),
     [draw, setDraw] = useState(false),
@@ -79,8 +82,7 @@ export default function Studio() {
     recorder = useRef<MediaRecorder | null>(null),
     recordStream = useRef<MediaStream | null>(null),
     recordFrame = useRef(0),
-    audio = useRef<AudioContext | null>(null),
-    gain = useRef<GainNode | null>(null),
+    audio = useRef<PortalAudio | null>(null),
     drag = useRef(false),
     points = useRef<{ x: number; y: number }[]>([]),
     lastGesture = useRef(0);
@@ -115,6 +117,7 @@ export default function Studio() {
         };
       const now = performance.now();
       if (s.circle) {
+        audio.current?.burst("gesture");
         patch({
           open: true,
           ...(s.point
@@ -205,29 +208,16 @@ export default function Studio() {
     },
     [],
   );
+  useEffect(() => {
+    audio.current?.update(portal);
+    audio.current?.volumes(masterVolume, effectsVolume, !sound);
+  }, [portal, sound, masterVolume, effectsVolume]);
   const toggleSound = async () => {
     try {
-      if (!audio.current) {
-        audio.current = new AudioContext();
-        const osc = audio.current.createOscillator();
-        gain.current = audio.current.createGain();
-        const pan = audio.current.createStereoPanner();
-        osc.type = "sine";
-        osc.frequency.value = 110;
-        gain.current.gain.value = 0;
-        pan.pan.value = clamp(portal.x / 2, -1, 1);
-        osc
-          .connect(gain.current)
-          .connect(pan)
-          .connect(audio.current.destination);
-        osc.start();
-      }
-      await audio.current.resume();
-      gain.current!.gain.setTargetAtTime(
-        sound ? 0 : 0.035,
-        audio.current.currentTime,
-        0.3,
-      );
+      if (!audio.current) audio.current = new PortalAudio();
+      await audio.current.enable();
+      audio.current.update(portal);
+      audio.current.volumes(masterVolume, effectsVolume, sound);
       setSound(!sound);
     } catch {
       setNotice("Audio could not start in this browser.");
@@ -367,7 +357,15 @@ export default function Studio() {
     }
   };
   return (
-    <main className={studio ? "app studio" : "app landing"} id="top">
+    <main
+      className={studio ? "app studio" : "app landing"}
+      id="top"
+      data-audio={sound ? "enabled" : "muted"}
+      onClickCapture={(e) => {
+        if (sound && (e.target as HTMLElement).closest("button"))
+          audio.current?.burst("ui");
+      }}
+    >
       <a className="skip-link" href="#main-content">
         Skip to content
       </a>
@@ -379,6 +377,9 @@ export default function Studio() {
             if (!recording) {
               setStudio(false);
               camera.stop();
+              void audio.current?.close();
+              audio.current = null;
+              setSound(false);
             }
           }}
         >
@@ -924,6 +925,26 @@ export default function Studio() {
               Mirror camera
             </label>
             <label htmlFor="record-size">Recording resolution</label>
+            <label htmlFor="master-volume">Master volume</label>
+            <input
+              id="master-volume"
+              type="range"
+              min="0"
+              max="1"
+              step=".01"
+              value={masterVolume}
+              onChange={(e) => setMasterVolume(+e.target.value)}
+            />
+            <label htmlFor="effects-volume">Effects volume</label>
+            <input
+              id="effects-volume"
+              type="range"
+              min="0"
+              max="1"
+              step=".01"
+              value={effectsVolume}
+              onChange={(e) => setEffectsVolume(+e.target.value)}
+            />
             <select
               id="record-size"
               value={recordSize}

@@ -267,6 +267,7 @@ export default function PortalCanvas({
       scale = 1;
     let lost = false;
     let previousFrame = 0;
+    let userScale = 1;
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
@@ -279,6 +280,7 @@ export default function PortalCanvas({
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
       if (lost || document.hidden || now - previousFrame < 1000 / 60) return;
+      const dt = Math.min(0.05, (now - previousFrame) / 1000);
       previousFrame = now;
       const s = current.current;
       const t = reducedMotion ? 0 : now * 0.001;
@@ -286,10 +288,12 @@ export default function PortalCanvas({
       renderer.domElement.dataset.phase = life.phase;
       auraMaterial.uniforms.time.value = t;
       auraMaterial.uniforms.tint.value.set(s.color);
-      scale = Math.max(0.001, s.scale * life.amount);
+      userScale = T.MathUtils.damp(userScale, s.scale, 12, dt);
+      scale = Math.max(0.001, userScale * life.amount);
       portal.scale.setScalar(scale);
       portal.visible = life.phase !== "closed";
-      portal.position.set(s.x, s.y, 0);
+      portal.position.x = T.MathUtils.damp(portal.position.x, s.x, 18, dt);
+      portal.position.y = T.MathUtils.damp(portal.position.y, s.y, 18, dt);
       spark.position.copy(portal.position);
       spark.visible = life.phase === "detection" || life.phase === "collapse";
       spark.scale.setScalar(0.4 + Math.sin(life.amount * Math.PI) * 4);
@@ -317,6 +321,13 @@ export default function PortalCanvas({
             ? ["#301521", "#b76b4d", "#cf8c59"]
             : ["#14263b", "#677d72", "#75a493"];
       destination.background = new T.Color(palette[0]);
+      sun.color.set(
+        s.lighting === "Moonlight"
+          ? "#9badff"
+          : s.lighting === "Warm"
+            ? "#ffd1a2"
+            : "#ffe4bb",
+      );
       (ground.material as T.MeshStandardMaterial).color.set(palette[1]);
       (grass.material as T.MeshStandardMaterial).color.set(palette[2]);
       const linked = linkPortalCamera(camera, portal, exit, dc);

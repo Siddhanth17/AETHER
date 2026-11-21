@@ -3,7 +3,9 @@ test("audio is opt-in, reusable, muted and closed on workspace exit", async ({
   page,
 }) => {
   await page.addInitScript(() => {
-    const state = window as unknown as Window & { __audioContexts: AudioContext[] };
+    const state = window as unknown as Window & {
+      __audioContexts: AudioContext[];
+    };
     state.__audioContexts = [];
     const Native = AudioContext;
     window.AudioContext = class extends Native {
@@ -62,4 +64,3 @@ test("unsupported audio reports a recoverable error", async ({ page }) => {
   );
   await expect(page.locator("main")).toHaveAttribute("data-audio", "muted");
 });
-

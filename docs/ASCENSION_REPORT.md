@@ -31,3 +31,9 @@ Types/lint pass; browser regression 7/7 (37.9 s) plus the explicit real-runtime 
 Extracted original synthesized layered hum, charging/opening frequency sweep, collapse sweep, gesture confirmation and UI tones. Actual PannerNode position follows portal state with inverse-distance attenuation. Explicit opt-in, global mute, separate master/effects volume, source tracking and context shutdown on workspace exit. A MediaStreamAudioDestinationNode supports optional recording later.
 
 Two real Web Audio browser cases pass (14.0 s): no context before opt-in, running context after activation, reuse through mute, closed context on exit; unsupported AudioContext fallback. Types/lint/build pass. No recorded listening evaluation or audio loudness benchmark is claimed. Test-only Window casting was corrected after strict type checking flagged it.
+
+## Phase 6 — camera-plane compositing
+
+Mouse/hand placement now intersects the actual perspective camera ray with the portal plane; exponential position/scale stabilization reduces jumps. Camera and export share cover/contain rectangle math, mirroring and artistic tint. Export letterboxes where needed instead of stretching the viewport. Neutral/Moonlight/Warm presets alter camera treatment and destination lighting.
+
+Types/lint and 21 unit tests pass, including portrait/desktop/parallax projection round-trips and aspect-ratio checks. Browser regression includes nine cases with audio and actual recording export. This is a screen-relative plane anchor, not world SLAM or reliable room depth. MediaPipe ImageSegmenter was considered but not adopted: a person matte alone would not establish portal depth order, and no additional segmentation inference budget has been validated. The baseline works without segmentation; physical occlusion is not claimed.

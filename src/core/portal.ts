@@ -1,5 +1,5 @@
 export type Destination = "Sanctuary" | "Glacier" | "Ember";
-export type Quality = "Low" | "Balanced" | "High";
+export type Quality = "Low" | "Balanced" | "High" | "Cinematic";
 export interface PortalState {
   open: boolean;
   scale: number;
@@ -10,6 +10,7 @@ export interface PortalState {
   y: number;
   viewX?: number;
   yaw?: number;
+  lighting?: "Neutral" | "Moonlight" | "Warm";
 }
 export const initialPortal: PortalState = {
   open: true,
@@ -19,6 +20,7 @@ export const initialPortal: PortalState = {
   intensity: 1,
   x: 0,
   y: 0,
+  viewX:0,yaw:0,lighting:'Neutral',
 };
 export function clamp(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));

@@ -24,6 +24,11 @@ import {
 import PortalCanvas from "./PortalCanvas";
 import { PortalAudio } from "@/audio/PortalAudio";
 import {
+  screenToPortalPlane,
+  containRect,
+  coverRect,
+} from "@/renderer/compositing";
+import {
   clamp,
   initialPortal,
   type Destination,
@@ -90,6 +95,17 @@ export default function Studio() {
     (value: Partial<PortalState>) => setPortal((p) => ({ ...p, ...value })),
     [],
   );
+  const anchor = useCallback(
+    (point: { x: number; y: number }) => {
+      const host = canvasHost.current;
+      return screenToPortalPlane(
+        point,
+        host ? host.clientWidth / host.clientHeight : 16 / 9,
+        portal.viewX ?? 0,
+      );
+    },
+    [portal.viewX],
+  );
   const sample = useCallback(
     (s: TrackingSample) => {
       setRawSample(s);
@@ -120,17 +136,12 @@ export default function Studio() {
         audio.current?.burst("gesture");
         patch({
           open: true,
-          ...(s.point
-            ? {
-                x: clamp((s.point.x - 0.5) * 4, -2, 2),
-                y: clamp((0.5 - s.point.y) * 3, -1.5, 1.5),
-              }
-            : {}),
+          ...(s.point ? { x: anchor(s.point).x, y: anchor(s.point).y } : {}),
         });
         setNotice("Circle recognized · portal opened");
       }
       if (s.gesture === "Pinch" && s.point)
-        patch({ x: (s.point.x - 0.5) * 4, y: (0.5 - s.point.y) * 3 });
+        patch({ x: anchor(s.point).x, y: anchor(s.point).y });
       if (s.span !== null && s.gesture === "Open palm")
         patch({
           scale: calibration
@@ -149,7 +160,7 @@ export default function Studio() {
         lastGesture.current = now;
       }
     },
-    [patch, mirror, calibrating, calibration],
+    [patch, mirror, calibrating, calibration, anchor],
   );
   const { video: videoRef, ...camera } = useCamera(sample, calibration);
   const metrics = useCallback((f: number, c: number) => {
@@ -240,29 +251,41 @@ export default function Studio() {
       const composite = () => {
         ctx.fillStyle = "#090a10";
         ctx.fillRect(0, 0, output.width, output.height);
+        const viewport = containRect(
+          source.width,
+          source.height,
+          output.width,
+          output.height,
+        );
         const v = videoRef.current;
         if (camera.active && v && v.readyState >= 2) {
           ctx.save();
+          ctx.beginPath();
+          ctx.rect(viewport.x, viewport.y, viewport.width, viewport.height);
+          ctx.clip();
+          ctx.translate(viewport.x, viewport.y);
+          ctx.globalAlpha = 0.75;
+          ctx.filter = v.style.filter || "none";
           if (mirror) {
-            ctx.translate(output.width, 0);
+            ctx.translate(viewport.width, 0);
             ctx.scale(-1, 1);
           }
-          const ratio = Math.max(
-            output.width / v.videoWidth,
-            output.height / v.videoHeight,
+          const rect = coverRect(
+            v.videoWidth,
+            v.videoHeight,
+            viewport.width,
+            viewport.height,
           );
-          const w = v.videoWidth * ratio,
-            h = v.videoHeight * ratio;
-          ctx.drawImage(
-            v,
-            (output.width - w) / 2,
-            (output.height - h) / 2,
-            w,
-            h,
-          );
+          ctx.drawImage(v, rect.x, rect.y, rect.width, rect.height);
           ctx.restore();
         }
-        ctx.drawImage(source, 0, 0, output.width, output.height);
+        ctx.drawImage(
+          source,
+          viewport.x,
+          viewport.y,
+          viewport.width,
+          viewport.height,
+        );
         recordFrame.current = requestAnimationFrame(composite);
       };
       composite();
@@ -346,10 +369,13 @@ export default function Studio() {
         throw new Error();
       setPortal({
         ...p,
+        viewX:typeof p.viewX==='number'&&Number.isFinite(p.viewX)?clamp(p.viewX,-3,3):0,
+        yaw:typeof p.yaw==='number'&&Number.isFinite(p.yaw)?clamp(p.yaw,-Math.PI,Math.PI):0,
+        lighting:['Neutral','Moonlight','Warm'].includes(p.lighting)?p.lighting:'Neutral',
         scale: clamp(p.scale, 0.4, 1.8),
         intensity: clamp(p.intensity, 0, 2),
-        x: clamp(p.x, -2, 2),
-        y: clamp(p.y, -1.5, 1.5),
+        x: clamp(p.x, -12, 12),
+        y: clamp(p.y, -6, 6),
       });
       setNotice("Portal preset restored");
     } catch {
@@ -457,6 +483,14 @@ export default function Studio() {
           muted
           playsInline
           hidden={!camera.active}
+          style={{
+            filter:
+              portal.lighting === "Moonlight"
+                ? "saturate(.8) brightness(.85) hue-rotate(12deg)"
+                : portal.lighting === "Warm"
+                  ? "sepia(.15) saturate(.9)"
+                  : "none",
+          }}
         />
         <PortalCanvas
           key={renderKey}
@@ -487,7 +521,10 @@ export default function Studio() {
               const x = e.nativeEvent.offsetX / e.currentTarget.clientWidth,
                 y = e.nativeEvent.offsetY / e.currentTarget.clientHeight;
               if (draw) points.current.push({ x, y });
-              else patch({ x: (x - 0.5) * 4, y: (0.5 - y) * 3 });
+              else {
+                const p = anchor({ x, y });
+                patch({ x: p.x, y: p.y });
+              }
             }}
             onPointerUp={async () => {
               drag.current = false;
@@ -676,6 +713,23 @@ export default function Studio() {
               </div>
               <div className="inspector-section">
                 <label htmlFor="view-x">Viewer parallax</label>
+                <label htmlFor="lighting">
+                  Camera lighting match (artistic)
+                </label>
+                <select
+                  id="lighting"
+                  value={portal.lighting ?? "Neutral"}
+                  onChange={(e) =>
+                    patch({
+                      lighting: e.target.value as
+                        "Neutral" | "Moonlight" | "Warm",
+                    })
+                  }
+                >
+                  <option>Neutral</option>
+                  <option>Moonlight</option>
+                  <option>Warm</option>
+                </select>
                 <input
                   id="view-x"
                   type="range"
